@@ -16,6 +16,7 @@
 #include "selinux.h"
 #include "cgroup.h"
 #include "logging.h"
+#include "xpad_activation.h"
 
 #ifdef DEBUG
 #define JAVA_DEBUGGABLE
@@ -195,6 +196,35 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FATAL_UID);
     }
 
+    if (apk_path.empty()) {
+        auto f = popen("pm path " PACKAGE_NAME, "r");
+        if (f) {
+            char line[PATH_MAX]{0};
+            fgets(line, PATH_MAX, f);
+            trim(line);
+            if (strstr(line, "package:") == line) {
+                apk_path = line + strlen("package:");
+            }
+            pclose(f);
+        }
+    }
+
+    if (apk_path.empty() || access(apk_path.c_str(), R_OK) != 0) {
+        perrorf("fatal: can't access BoomInstaller APK %s\n", apk_path.c_str());
+        exit(EXIT_FATAL_PM_PATH);
+    }
+
+    if (uid == 2000) {
+        char starter_path[PATH_MAX]{0};
+        ssize_t length = readlink("/proc/self/exe", starter_path, sizeof(starter_path) - 1);
+        if (length <= 0) {
+            snprintf(starter_path, sizeof(starter_path), "%s", argv[0]);
+        } else {
+            starter_path[length] = '\0';
+        }
+        return xpad::activate(starter_path, apk_path.c_str());
+    }
+
     se::init();
 
     if (uid == 0) {
@@ -249,34 +279,7 @@ int main(int argc, char *argv[]) {
         }
     });
 
-    if (access(apk_path.c_str(), R_OK) == 0) {
-        printf("info: use apk path from argv\n");
-        fflush(stdout);
-    }
-
-    if (apk_path.empty()) {
-        auto f = popen("pm path " PACKAGE_NAME, "r");
-        if (f) {
-            char line[PATH_MAX]{0};
-            fgets(line, PATH_MAX, f);
-            trim(line);
-            if (strstr(line, "package:") == line) {
-                apk_path = line + strlen("package:");
-            }
-            pclose(f);
-        }
-    }
-
-    if (apk_path.empty()) {
-        perrorf("fatal: can't get path of manager\n");
-        exit(EXIT_FATAL_PM_PATH);
-    }
-
     printf("info: apk path is %s\n", apk_path.c_str());
-    if (access(apk_path.c_str(), R_OK) != 0) {
-        perrorf("fatal: can't access manager %s\n", apk_path.c_str());
-        exit(EXIT_FATAL_PM_PATH);
-    }
 
     printf("info: starting server...\n");
     fflush(stdout);

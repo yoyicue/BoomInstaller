@@ -8,24 +8,28 @@ service model. The only device-specific boundary is service activation:
 
 ```text
 BoomInstaller APK
-  -> /data/local/tmp/xpad-install activate
-  -> packaged libshizuku.so starter
+  -> packaged libshizuku.so starter (shell/root)
+  -> XPad identity selection inside the same native executable
+  -> the same starter again (system/znxrun/root)
   -> rikka.shizuku.server.ShizukuService
 ```
 
-The Manager passes its installed APK path and packaged native starter to
-`xpad-install`. The native tool selects an available identity:
+The Manager executes `libshizuku.so` directly from its installed native library
+directory, matching Shizuku's native starter model. The starter selects an
+available identity:
 
 - UID 10072 through the 0044 `run-as znxrun` path, only when that UID has the
   framework permission required to deliver Binder;
-- UID 0 through the existing temporary-root transport;
+- UID 0 when the starter is launched from a root shell;
 - UID 1000 through the CVE-2024-31317 system runner.
 
 On TALIH_PD2 firmware, UID 10072 can install APKs but cannot call
 `getContentProviderExternal`, so BoomInstaller activation falls back to UID 1000.
-For the 31317 path, open BoomInstaller before activation so its provider is already
-running. Service activation does not load `/data/local/tmp/installer.dex`; the DEX
-embedded in `xpad-install` remains for its APK installation commands.
+For the 31317 path, the payload is passed to Android's settings command directly
+from memory. It then executes the packaged starter and installed APK in place.
+There is no external helper, copied DEX, or temporary-directory dependency in the
+BoomInstaller runtime. The hidden setting and short-lived system runner are removed
+before activation returns.
 
 ## Build
 
