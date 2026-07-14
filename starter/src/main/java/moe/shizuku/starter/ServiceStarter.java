@@ -21,7 +21,7 @@ public class ServiceStarter {
 
     private static final String TAG = "BoomInstallerServiceStarter";
 
-    private static final String EXTRA_BINDER = "com.yoyicue.boominstaller.intent.extra.BINDER";
+    private static final String EXTRA_BINDER = "moe.shizuku.privileged.api.intent.extra.BINDER";
 
     public static final String DEBUG_ARGS;
 
