@@ -68,6 +68,10 @@ public class ServiceStarter {
 
         UserService.setTag(TAG);
         Pair<IBinder, String> result = UserService.create(args);
+        if (result == null) {
+            Log.w(TAG, "retrying service creation with package Context");
+            result = UserServiceFallback.create(args);
+        }
 
         if (result == null) {
             System.exit(1);

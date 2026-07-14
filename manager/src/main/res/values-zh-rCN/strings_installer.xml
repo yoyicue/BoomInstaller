@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_installer_title">安装 APK</string>
+    <string name="home_installer_description">通过 UID 1000 服务安装 APK</string>
+    <string name="home_installer_requires_system">请先以系统模式启动 BoomInstaller</string>
+    <string name="installer_title">APK 安装器</string>
+    <string name="installer_intro">APK 将通过 UID 1000 服务直接流送到 Android PackageInstaller，不会创建临时 APK。</string>
+    <string name="installer_no_file">尚未选择 APK</string>
+    <string name="installer_select_apk">选择 APK</string>
+    <string name="installer_install">安装</string>
+    <string name="installer_service_connecting">正在连接安装服务…</string>
+    <string name="installer_service_ready">安装服务已就绪（UID %1$d）</string>
+    <string name="installer_service_wrong_uid">安装服务 UID %1$d 不受支持</string>
+    <string name="installer_service_disconnected">安装服务连接已断开</string>
+    <string name="installer_boom_service_required">安装 APK 前请先启动 BoomInstaller 服务</string>
+    <string name="installer_selected_file_size">%1$s · %2$s</string>
+    <string name="installer_apk_unreadable">无法读取所选 APK</string>
+    <string name="installer_opening_apk">正在打开 APK…</string>
+    <string name="installer_copying">正在流送 %1$s / %2$s</string>
+    <string name="installer_copying_unknown">正在流送 %1$s</string>
+    <string name="installer_waiting_confirmation">正在等待系统确认…</string>
+    <string name="installer_success">安装完成</string>
+    <string name="installer_success_package">已安装 %1$s</string>
+    <string name="installer_failed">安装失败（%1$d）：%2$s</string>
+    <string name="installer_unknown_error">未知错误</string>
+    <string name="installer_error">错误：%1$s</string>
+    <string name="installer_size_unknown">大小未知</string>
+</resources>

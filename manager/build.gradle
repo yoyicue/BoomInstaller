@@ -22,6 +22,7 @@ android {
         }
     }
     buildFeatures {
+        aidl true
         buildConfig true
         viewBinding true
         prefab true

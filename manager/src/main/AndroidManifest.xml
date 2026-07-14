@@ -83,6 +83,21 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".installer.InstallerActivity"
+            android:exported="true"
+            android:label="@string/installer_title"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data
+                    android:mimeType="application/vnd.android.package-archive"
+                    android:scheme="content" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".management.ApplicationManagementActivity"
             android:label="@string/home_app_management_title" />
         <activity

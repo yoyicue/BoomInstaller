@@ -25,6 +25,7 @@ import moe.shizuku.manager.utils.UserHandleCompat
 import rikka.shizuku.Shizuku
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class BootCompleteReceiver : BroadcastReceiver() {
 
@@ -65,26 +66,48 @@ class BootCompleteReceiver : BroadcastReceiver() {
         Settings.Global.putLong(cr, "adb_allowed_connection_time", 0L)
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            val latch = CountDownLatch(1)
-            val adbMdns = AdbMdns(context, AdbMdns.TLS_CONNECT) { port ->
-                if (port <= 0) return@AdbMdns
-                try {
-                    val keystore = PreferenceAdbKeyStore(ShizukuSettings.getPreferences())
-                    val key = AdbKey(keystore, "shizuku")
-                    val client = AdbClient("127.0.0.1", port, key)
-                    client.connect()
-                    client.shellCommand(Starter.internalCommand, null)
-                    client.close()
-                } catch (_: Exception) {
+            try {
+                val key = AdbKey(
+                    PreferenceAdbKeyStore(ShizukuSettings.getPreferences()),
+                    "boominstaller"
+                )
+                val discoveredPort = AtomicInteger(-1)
+                val latch = CountDownLatch(1)
+                val adbMdns = AdbMdns(context, AdbMdns.TLS_CONNECT) { port ->
+                    if (port > 0 && discoveredPort.compareAndSet(-1, port)) {
+                        latch.countDown()
+                    }
                 }
-                latch.countDown()
+                var started = false
+                if (Settings.Global.getInt(cr, "adb_wifi_enabled", 0) == 1) {
+                    adbMdns.start()
+                    latch.await(3, TimeUnit.SECONDS)
+                    adbMdns.stop()
+                    val port = discoveredPort.get()
+                    if (port > 0) started = startViaAdb(port, key)
+                }
+
+                if (!started) Log.e(AppConstants.TAG, "ADB start on boot failed: mDNS found no local ADB port")
+            } catch (e: Throwable) {
+                Log.e(AppConstants.TAG, "ADB start on boot failed", e)
+            } finally {
+                pending.finish()
             }
-            if (Settings.Global.getInt(cr, "adb_wifi_enabled", 0) == 1) {
-                adbMdns.start()
-                latch.await(3, TimeUnit.SECONDS)
-                adbMdns.stop()
-            }
-            pending.finish()
         }
     }
+
+    private fun startViaAdb(port: Int, key: AdbKey): Boolean {
+        return try {
+            AdbClient("127.0.0.1", port, key).use { client ->
+                client.connect()
+                client.shellCommand(Starter.internalCommand, null)
+            }
+            Log.i(AppConstants.TAG, "ADB start on boot succeeded on local port $port")
+            true
+        } catch (e: Throwable) {
+            Log.d(AppConstants.TAG, "Local port $port is not ADB", e)
+            false
+        }
+    }
+
 }

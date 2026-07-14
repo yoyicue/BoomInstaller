@@ -59,3 +59,6 @@
 -repackageclasses rikka.shizuku
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+-keep class moe.shizuku.manager.installer.BoomInstallerUserService {
+    public <init>(android.content.Context);
+}

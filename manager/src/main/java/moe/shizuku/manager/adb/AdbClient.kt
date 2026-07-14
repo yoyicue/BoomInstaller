@@ -44,6 +44,7 @@ class AdbClient(private val host: String, private val port: Int, private val key
     fun connect() {
         socket = Socket(host, port)
         socket.tcpNoDelay = true
+        socket.soTimeout = 5000
         plainInputStream = DataInputStream(socket.getInputStream())
         plainOutputStream = DataOutputStream(socket.getOutputStream())
 

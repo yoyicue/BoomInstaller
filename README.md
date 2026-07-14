@@ -31,6 +31,49 @@ There is no external helper, copied DEX, or temporary-directory dependency in th
 BoomInstaller runtime. The hidden setting and short-lived system runner are removed
 before activation returns.
 
+## One-time activation
+
+Install the APK through the XPad OEM installer path, then place the current
+`xpad-install` ELF on the device. One ADB command both activates the current
+boot and provisions later boots:
+
+```shell
+adb shell '
+APK=$(pm path com.yoyicue.boominstaller)
+APK=${APK#package:}
+STARTER=${APK%/base.apk}/lib/arm64/libshizuku.so
+/data/local/tmp/xpad-install activate --starter="$STARTER" --apk="$APK"
+'
+```
+
+During this first run, BoomInstaller creates its own ADB key and pairs it with
+Android wireless debugging over loopback. The private key never leaves the APK.
+The command waits for this firmware's pairing service to settle, refreshes the
+Wi-Fi ADB transport, selects the available XPad identity, and starts the service.
+
+On later ordinary boots, `BootCompleteReceiver` enables wireless debugging,
+discovers the device's random TLS port with mDNS, authenticates with the paired
+key, and executes the installed `libshizuku.so`. No computer, exploit, copied
+DEX, or `/data/local/tmp` file is used by that boot path. Pair again only after
+uninstalling BoomInstaller, clearing its app data, revoking the paired device, or
+manually disabling the required wireless-debugging settings.
+
+To provision persistence without restarting the service in the current boot:
+
+```shell
+adb shell /data/local/tmp/xpad-install autostart enable
+```
+
+## APK installer
+
+When the home page reports that BoomInstaller is running as `system`, open
+**Install APK**, select an APK with Android's document picker, and tap
+**Install**. The Manager passes the selected file descriptor to a private UID
+1000 user service. That service streams it directly into a PackageInstaller
+session, attributes the session to the firmware-approved
+`com.tal.pad.znxxservice` installer, and sends progress and the final result back
+to the activity. It does not copy the APK to a temporary path.
+
 ## Build
 
 Requirements: JDK 21, Android SDK/Build Tools 35, and NDK 27.2.12479018.

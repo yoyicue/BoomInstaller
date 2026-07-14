@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="home_installer_title">Install APK</string>
+    <string name="home_installer_description">Install an APK through the UID 1000 service</string>
+    <string name="home_installer_requires_system">Start BoomInstaller in system mode first</string>
+    <string name="installer_title">APK installer</string>
+    <string name="installer_intro">The APK is streamed directly to Android PackageInstaller through the UID 1000 service. No temporary APK is created.</string>
+    <string name="installer_no_file">No APK selected</string>
+    <string name="installer_select_apk">Select APK</string>
+    <string name="installer_install">Install</string>
+    <string name="installer_service_connecting">Connecting to installer service…</string>
+    <string name="installer_service_ready">Installer service ready (UID %1$d)</string>
+    <string name="installer_service_wrong_uid">Installer service has unsupported UID %1$d</string>
+    <string name="installer_service_disconnected">Installer service disconnected</string>
+    <string name="installer_boom_service_required">Start the BoomInstaller service before installing an APK</string>
+    <string name="installer_selected_file_size">%1$s · %2$s</string>
+    <string name="installer_apk_unreadable">The selected APK cannot be read</string>
+    <string name="installer_opening_apk">Opening APK…</string>
+    <string name="installer_copying">Streaming %1$s / %2$s</string>
+    <string name="installer_copying_unknown">Streaming %1$s</string>
+    <string name="installer_waiting_confirmation">Waiting for system confirmation…</string>
+    <string name="installer_success">Installation completed</string>
+    <string name="installer_success_package">Installed %1$s</string>
+    <string name="installer_failed">Installation failed (%1$d): %2$s</string>
+    <string name="installer_unknown_error">Unknown error</string>
+    <string name="installer_error">Error: %1$s</string>
+    <string name="installer_size_unknown">Unknown size</string>
+</resources>
