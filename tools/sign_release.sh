@@ -8,10 +8,7 @@ if [[ -z ${JAVA_HOME:-} && \
   -d /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ]]; then
   export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 fi
-BACKUP=${BOOM_RELEASE_SIGNING_BACKUP:-/Volumes/home/projects/xpad2-reroot-android/signing-backup}
-KEYSTORE="$BACKUP/xpad2-boom-release.p12"
-SECRET_FILE="$BACKUP/xpad2-boom-release-password.rsa-oaep-sha256"
-RECOVERY_KEY="$BACKUP/recovery-rsa/id_rsa"
+BACKUP=${BOOM_RELEASE_SIGNING_BACKUP:-}
 KEY_ALIAS=boom-xpad2-release
 EXPECTED_PACKAGE=com.yoyicue.boominstaller
 EXPECTED_CERT_SHA256=3cb5b69579d23197ced8100818a85a46b821383a504b394a44cfe3e98ade78a2
@@ -21,6 +18,11 @@ die() {
   printf 'BOOM_RELEASE_SIGN_REFUSED reason=%s\n' "$1" >&2
   exit 1
 }
+
+[[ -n "$BACKUP" ]] || die signing-backup-not-set
+KEYSTORE="$BACKUP/xpad2-boom-release.p12"
+SECRET_FILE="$BACKUP/xpad2-boom-release-password.rsa-oaep-sha256"
+RECOVERY_KEY="$BACKUP/recovery-rsa/id_rsa"
 
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then

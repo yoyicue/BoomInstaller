@@ -3,6 +3,17 @@
 BoomInstaller is a device-specific Shizuku fork for XPad. Its Android package is
 `com.yoyicue.boominstaller`.
 
+Canonical project identity:
+
+- source repository: `https://github.com/yoyicue/BoomInstaller`;
+- Android product and APK: **BoomInstaller**;
+- companion device CLI: [`xpad-installer`](https://github.com/yoyicue/xpad-installer),
+  installed as `/data/local/tmp/xpad-install`;
+- integrated offline installer: [`xpad2-cli`](https://github.com/yoyicue/xpad2-cli).
+
+The former private repository name `xpad2_installer` is retired. It referred to
+this Android app and must not be confused with the separate `xpad-installer` CLI.
+
 The project deliberately keeps the upstream Shizuku server, AIDL, API, and user
 service model. The only device-specific boundary is service activation:
 
@@ -93,6 +104,7 @@ production certificate from the protected signing backup:
 ```shell
 JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
   ./gradlew :manager:assembleRelease
+export BOOM_RELEASE_SIGNING_BACKUP=/path/to/protected/signing-backup
 tools/sign_release.sh
 ```
 
@@ -110,5 +122,6 @@ build without an explicit signing-key migration or removing the debug package.
 ## Upstream and license
 
 BoomInstaller is based on [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku)
-and its Shizuku-API submodule. Source code remains under the Apache License 2.0;
-see [LICENSE](LICENSE).
+commit `b844bc491f1790c72328e1a8e5b2349f8978f0ea` and its pinned Shizuku-API
+submodule. Source code remains under the Apache License 2.0; see [LICENSE](LICENSE)
+and [NOTICE.md](NOTICE.md).

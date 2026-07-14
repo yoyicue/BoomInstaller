@@ -1,67 +1,69 @@
 name: Bug report
-description: Report a bug of Shizuku
+description: Report a BoomInstaller bug on supported XPad firmware
 
 body:
   - type: checkboxes
     id: requirements
     attributes:
-      label: Requirements
+      label: Before submitting
       options:
-        - label: Shizuku is downloaded from official channels (GitHub release or Google Play)
-        - label: Shizuku is not running in a virtual environment or broken ROM (GrapheneOS)
-        - label: (Root users) No Xposed installed / Xposed is not enabled for Shizuku
+        - label: I installed a production APK from the official BoomInstaller or xpad2 release
+          required: true
+        - label: I removed device serials, ADB keys, tokens, passwords, and private keys from attachments
+          required: true
 
   - type: input
     id: version
     attributes:
-      label: Latest Shizuku version
+      label: BoomInstaller version
+      placeholder: 13.6.0.r8
     validations:
       required: true
 
   - type: input
-    id: shizuku_version
+    id: xpad2_version
     attributes:
-      label: Version in use
-    validations:
-      required: true
+      label: xpad2 version, if used
+      placeholder: 0.1.1
 
   - type: dropdown
     id: mode
     attributes:
-      label: Mode
+      label: Activation mode
       options:
-        - adb
+        - system (XPad 31317)
+        - znxrun (XPad 0044)
         - root
-        - manual
+        - not activated
     validations:
       required: true
 
   - type: input
-    id: android_version
+    id: firmware
     attributes:
-      label: Android version
-    validations:
-      required: true
-
-  - type: input
-    id: device
-    attributes:
-      label: Device
+      label: Firmware build or fingerprint
+      placeholder: /260 or full build fingerprint
     validations:
       required: true
 
   - type: textarea
     id: reproducer
     attributes:
-      label: What did you do
+      label: Reproduction steps
+    validations:
+      required: true
 
   - type: textarea
     id: logs
     attributes:
-      label: What happened
-      description: You can upload log and screenshot
+      label: Actual result and sanitized logs
+      description: Prefer an xpad2log archive or a screenshot after removing sensitive data.
+    validations:
+      required: true
 
   - type: textarea
     id: expected-behaviour
     attributes:
-      label: What do you expect
+      label: Expected result
+    validations:
+      required: true
