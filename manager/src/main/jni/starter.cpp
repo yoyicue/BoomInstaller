@@ -31,8 +31,8 @@
 #define EXIT_FATAL_KILL 9
 #define EXIT_FATAL_BINDER_BLOCKED_BY_SELINUX 10
 
-#define PACKAGE_NAME "moe.shizuku.privileged.api"
-#define SERVER_NAME "shizuku_server"
+#define PACKAGE_NAME "com.yoyicue.boominstaller"
+#define SERVER_NAME "boominstaller_server"
 #define SERVER_CLASS_PATH "rikka.shizuku.server.ShizukuService"
 
 #if defined(__arm__)
@@ -134,7 +134,7 @@ static void start_server(const char *path, const char *main_class, const char *p
             run_server(path, main_class, process_name);
         }
         default: {
-            printf("info: shizuku_server pid is %d\n", pid);
+            printf("info: boominstaller_server pid is %d\n", pid);
             printf("info: shizuku_starter exit with 0\n");
             exit(EXIT_SUCCESS);
         }
@@ -190,8 +190,8 @@ int main(int argc, char *argv[]) {
     }
 
     uid_t uid = getuid();
-    if (uid != 0 && uid != 2000) {
-        perrorf("fatal: run Shizuku from non root nor adb user (uid=%d).\n", uid);
+    if (uid != 0 && uid != 1000 && uid != 2000 && uid != 10072) {
+        perrorf("fatal: unsupported BoomInstaller server uid=%d.\n", uid);
         exit(EXIT_FATAL_UID);
     }
 

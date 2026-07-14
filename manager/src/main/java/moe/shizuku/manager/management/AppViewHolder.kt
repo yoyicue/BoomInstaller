@@ -62,7 +62,7 @@ class AppViewHolder(private val binding: AppListItemBinding) : BaseViewHolder<Pa
             } catch (ex: Throwable) {
                 return
             }
-            if (uid != 0) {
+            if (uid == 2000) {
                 val dialog = MaterialAlertDialogBuilder(context)
                         .setTitle(R.string.app_management_dialog_adb_is_limited_title)
                         .setMessage(context.getString(R.string.app_management_dialog_adb_is_limited_message, Helps.ADB.get()).toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE))

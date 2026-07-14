@@ -47,7 +47,7 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
             addItem(TerminalViewHolder.CREATOR, status, ID_TERMINAL)
         }
 
-        if (running && !adbPermission) {
+        if (running && !adbPermission && status.uid == 2000) {
             addItem(AdbPermissionLimitedViewHolder.CREATOR, status, ID_ADB_PERMISSION_LIMITED)
         }
 

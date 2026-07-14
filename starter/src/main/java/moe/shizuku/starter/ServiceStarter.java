@@ -19,9 +19,9 @@ import rikka.shizuku.server.UserService;
 
 public class ServiceStarter {
 
-    private static final String TAG = "ShizukuServiceStarter";
+    private static final String TAG = "BoomInstallerServiceStarter";
 
-    private static final String EXTRA_BINDER = "moe.shizuku.privileged.api.intent.extra.BINDER";
+    private static final String EXTRA_BINDER = "com.yoyicue.boominstaller.intent.extra.BINDER";
 
     public static final String DEBUG_ARGS;
 
@@ -92,7 +92,7 @@ public class ServiceStarter {
     }
 
     private static boolean sendBinder(IBinder binder, String token, boolean retry) {
-        String packageName = "moe.shizuku.privileged.api";
+        String packageName = "com.yoyicue.boominstaller";
         String name = packageName + ".shizuku";
         int userId = 0;
         IContentProvider provider = null;
