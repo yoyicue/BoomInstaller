@@ -85,6 +85,28 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
 
 The APK is written under `manager/build/outputs/apk/debug/`.
 
+### Release signing
+
+Build the minimized release content, then sign it with the dedicated BOOM
+production certificate from the protected signing backup:
+
+```shell
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
+  ./gradlew :manager:assembleRelease
+tools/sign_release.sh
+```
+
+The signing script validates the complete backup checksum manifest, pins the
+recovery-key fingerprint and production certificate, decrypts the PKCS12
+password only in process memory, and requires APK Signature Schemes v2 and v3.
+The final artifact is written to `out/apk/*-production.apk`; the intermediate
+APK under `manager/build/outputs/apk/release/` is not a production artifact.
+Override the default backup path with `BOOM_RELEASE_SIGNING_BACKUP` when needed.
+
+Production and debug certificates are intentionally different. Android cannot
+install a production-signed build over a previously installed debug-signed
+build without an explicit signing-key migration or removing the debug package.
+
 ## Upstream and license
 
 BoomInstaller is based on [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku)
