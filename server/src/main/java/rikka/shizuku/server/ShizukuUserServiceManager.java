@@ -1,6 +1,7 @@
 package rikka.shizuku.server;
 
 import android.content.pm.PackageInfo;
+import android.os.Process;
 import android.util.ArrayMap;
 
 import java.io.File;
@@ -15,6 +16,10 @@ import rikka.hidden.compat.UserManagerApis;
 import rikka.shizuku.server.util.UserHandleCompat;
 
 public class ShizukuUserServiceManager extends UserServiceManager {
+
+    private static final String MANAGER_PACKAGE = "com.yoyicue.boominstaller";
+    private static final String INSTALLER_SERVICE =
+            "moe.shizuku.manager.installer.BoomInstallerUserService";
 
     private final Map<UserServiceRecord, ApkChangedListener> apkChangedListeners = new ArrayMap<>();
     private final Map<String, List<UserServiceRecord>> userServiceRecords = Collections.synchronizedMap(new ArrayMap<>());
@@ -32,10 +37,21 @@ public class ShizukuUserServiceManager extends UserServiceManager {
         if (use32Bits && new File("/system/bin/app_process32").exists()) {
             appProcess = "/system/bin/app_process32";
         }
-        return ServiceStarter.commandForUserService(
+        String command = ServiceStarter.commandForUserService(
                 appProcess,
                 ShizukuService.getManagerApplicationInfo().sourceDir,
                 token, packageName, classname, processNameSuffix, callingUid, debug);
+        if (Process.myUid() == 0
+                && MANAGER_PACKAGE.equals(packageName)
+                && INSTALLER_SERVICE.equals(classname)) {
+            LOGGER.i("Starting BoomInstaller APK broker as uid 1000 from root server");
+            return "/system/bin/su 1000 -c " + shellQuote(command);
+        }
+        return command;
+    }
+
+    private static String shellQuote(String value) {
+        return "'" + value.replace("'", "'\"'\"'") + "'";
     }
 
     @Override

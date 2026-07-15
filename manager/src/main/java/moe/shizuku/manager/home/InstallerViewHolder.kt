@@ -8,6 +8,7 @@ import moe.shizuku.manager.R
 import moe.shizuku.manager.databinding.HomeInstallerBinding
 import moe.shizuku.manager.databinding.HomeItemContainerBinding
 import moe.shizuku.manager.installer.InstallerActivity
+import moe.shizuku.manager.installer.InstallerIdentity
 import moe.shizuku.manager.model.ServiceStatus
 import rikka.recyclerview.BaseViewHolder
 
@@ -27,7 +28,7 @@ class InstallerViewHolder(private val binding: HomeInstallerBinding, root: View)
     }
 
     override fun onBind() {
-        val ready = data.isRunning && data.uid == 1000
+        val ready = data.isRunning && InstallerIdentity.canHostInstaller(data.uid)
         itemView.isEnabled = ready
         binding.text2.text = itemView.context.getString(
             if (ready) R.string.home_installer_description

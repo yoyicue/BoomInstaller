@@ -62,10 +62,12 @@ Android wireless debugging over loopback. The private key never leaves the APK.
 The command waits for this firmware's pairing service to settle, refreshes the
 Wi-Fi ADB transport, selects the available XPad identity, and starts the service.
 
-On later ordinary boots, `BootCompleteReceiver` enables wireless debugging,
-discovers the device's random TLS port with mDNS, authenticates with the paired
-key, and executes the installed `libshizuku.so`. No computer, exploit, copied
-DEX, or `/data/local/tmp` file is used by that boot path. Pair again only after
+On later ordinary boots, `BootCompleteReceiver` first restores the last working
+mode. If that mode is root but KernelSU is not ready yet, it automatically falls
+back to the paired local wireless-debugging path: it discovers the device's
+random TLS port with mDNS, authenticates with the paired key, and executes the
+installed `libshizuku.so`. No computer, exploit, copied DEX, or
+`/data/local/tmp` file is used by that boot path. Pair again only after
 uninstalling BoomInstaller, clearing its app data, revoking the paired device, or
 manually disabling the required wireless-debugging settings.
 
@@ -77,13 +79,14 @@ adb shell /data/local/tmp/xpad-install autostart enable
 
 ## APK installer
 
-When the home page reports that BoomInstaller is running as `system`, open
-**Install APK**, select an APK with Android's document picker, and tap
+When the home page reports that BoomInstaller is running as `root` or `system`,
+open **Install APK**, select an APK with Android's document picker, and tap
 **Install**. The Manager passes the selected file descriptor to a private UID
-1000 user service. That service streams it directly into a PackageInstaller
-session, attributes the session to the firmware-approved
-`com.tal.pad.znxxservice` installer, and sends progress and the final result back
-to the activity. It does not copy the APK to a temporary path.
+1000 installer broker. In root mode, only this broker is launched under UID
+1000; the main BoomInstaller service remains root. The broker streams the APK
+directly into a PackageInstaller session, attributes the session to the
+firmware-approved `com.tal.pad.znxxservice` installer, and sends progress and the
+final result back to the activity. It does not copy the APK to a temporary path.
 
 ## Build
 

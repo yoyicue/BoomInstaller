@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="home_installer_title">Install APK</string>
-    <string name="home_installer_description">Install an APK through the UID 1000 service</string>
-    <string name="home_installer_requires_system">Start BoomInstaller in system mode first</string>
+    <string name="home_installer_description">Install an APK through an isolated system broker</string>
+    <string name="home_installer_requires_system">Start BoomInstaller in root or system mode first</string>
     <string name="installer_title">APK installer</string>
-    <string name="installer_intro">The APK is streamed directly to Android PackageInstaller through the UID 1000 service. No temporary APK is created.</string>
+    <string name="installer_intro">The APK is streamed directly to Android PackageInstaller through an isolated UID 1000 broker. No temporary APK is created.</string>
     <string name="installer_no_file">No APK selected</string>
     <string name="installer_select_apk">Select APK</string>
     <string name="installer_install">Install</string>

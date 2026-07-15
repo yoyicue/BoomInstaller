@@ -50,7 +50,7 @@ class InstallerActivity : AppBarActivity() {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             val candidate = IBoomInstallerService.Stub.asInterface(binder)
             runCatching { candidate.uid }.onSuccess { uid ->
-                if (uid == 1000) {
+                if (InstallerIdentity.isInstallerServiceUid(uid)) {
                     service = candidate
                     binding.status.text = getString(R.string.installer_service_ready, uid)
                 } else {

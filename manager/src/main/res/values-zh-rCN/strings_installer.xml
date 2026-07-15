@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_installer_title">安装 APK</string>
-    <string name="home_installer_description">通过 UID 1000 服务安装 APK</string>
-    <string name="home_installer_requires_system">请先以系统模式启动 BoomInstaller</string>
+    <string name="home_installer_description">通过隔离的系统安装服务安装 APK</string>
+    <string name="home_installer_requires_system">请先以 Root 或系统模式启动 BoomInstaller</string>
     <string name="installer_title">APK 安装器</string>
-    <string name="installer_intro">APK 将通过 UID 1000 服务直接流送到 Android PackageInstaller，不会创建临时 APK。</string>
+    <string name="installer_intro">APK 将通过隔离的 UID 1000 系统安装服务直接流送到 Android PackageInstaller，不会创建临时 APK。</string>
     <string name="installer_no_file">尚未选择 APK</string>
     <string name="installer_select_apk">选择 APK</string>
     <string name="installer_install">安装</string>

@@ -87,8 +87,8 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
 
     private void installInternal(ParcelFileDescriptor apk, long size, String displayName,
             IInstallCallback callback) throws Exception {
-        if (Process.myUid() != Process.SYSTEM_UID) {
-            throw new SecurityException("installer service requires uid 1000, current uid="
+        if (!InstallerIdentity.isInstallerServiceUid(Process.myUid())) {
+            throw new SecurityException("installer service requires system identity, current uid="
                     + Process.myUid());
         }
 

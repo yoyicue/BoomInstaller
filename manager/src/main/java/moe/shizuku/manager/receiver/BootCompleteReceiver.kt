@@ -37,62 +37,90 @@ class BootCompleteReceiver : BroadcastReceiver() {
 
         if (UserHandleCompat.myUserId() > 0 || Shizuku.pingBinder()) return
 
-        if (ShizukuSettings.getLastLaunchMode() == LaunchMethod.ROOT) {
-            rootStart(context)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU // https://r.android.com/2128832
+        val lastLaunchMode = ShizukuSettings.getLastLaunchMode()
+        val canStartViaAdb = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU // https://r.android.com/2128832
             && context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
-            && ShizukuSettings.getLastLaunchMode() == LaunchMethod.ADB) {
-            adbStart(context)
-        } else {
+        if (lastLaunchMode != LaunchMethod.ROOT
+            && (lastLaunchMode != LaunchMethod.ADB || !canStartViaAdb)) {
             Log.w(AppConstants.TAG, "No support start on boot")
-        }
-    }
-
-    private fun rootStart(context: Context) {
-        if (!Shell.getShell().isRoot) {
-            //NotificationHelper.notify(context, AppConstants.NOTIFICATION_ID_STATUS, AppConstants.NOTIFICATION_CHANNEL_STATUS, R.string.notification_service_start_no_root)
-            Shell.getCachedShell()?.close()
             return
         }
 
-        Shell.cmd(Starter.internalCommand).exec()
+        val pending = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                var started = lastLaunchMode == LaunchMethod.ROOT && rootStart()
+                if (!started && canStartViaAdb) {
+                    if (lastLaunchMode == LaunchMethod.ROOT) {
+                        Log.w(AppConstants.TAG, "Root start on boot unavailable; falling back to local ADB")
+                    }
+                    started = adbStart(context)
+                }
+                if (!started) Log.e(AppConstants.TAG, "Start on boot failed")
+            } catch (e: Throwable) {
+                Log.e(AppConstants.TAG, "Start on boot failed", e)
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
+    private fun rootStart(): Boolean {
+        return try {
+            if (!Shell.getShell().isRoot) {
+                //NotificationHelper.notify(context, AppConstants.NOTIFICATION_ID_STATUS, AppConstants.NOTIFICATION_CHANNEL_STATUS, R.string.notification_service_start_no_root)
+                Shell.getCachedShell()?.close()
+                return false
+            }
+
+            val result = Shell.cmd(Starter.internalCommand).exec()
+            if (result.code != 0) {
+                Log.e(AppConstants.TAG, "Root start on boot failed with exit code ${result.code}")
+                return false
+            }
+            Log.i(AppConstants.TAG, "Root start on boot succeeded")
+            true
+        } catch (e: Throwable) {
+            Shell.getCachedShell()?.close()
+            Log.e(AppConstants.TAG, "Root start on boot failed", e)
+            false
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private fun adbStart(context: Context) {
+    private fun adbStart(context: Context): Boolean {
         val cr = context.contentResolver
         Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
         Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 1)
         Settings.Global.putLong(cr, "adb_allowed_connection_time", 0L)
-        val pending = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val key = AdbKey(
-                    PreferenceAdbKeyStore(ShizukuSettings.getPreferences()),
-                    "boominstaller"
-                )
-                val discoveredPort = AtomicInteger(-1)
-                val latch = CountDownLatch(1)
-                val adbMdns = AdbMdns(context, AdbMdns.TLS_CONNECT) { port ->
-                    if (port > 0 && discoveredPort.compareAndSet(-1, port)) {
-                        latch.countDown()
-                    }
+        return try {
+            val key = AdbKey(
+                PreferenceAdbKeyStore(ShizukuSettings.getPreferences()),
+                "boominstaller"
+            )
+            val discoveredPort = AtomicInteger(-1)
+            val latch = CountDownLatch(1)
+            val adbMdns = AdbMdns(context, AdbMdns.TLS_CONNECT) { port ->
+                if (port > 0 && discoveredPort.compareAndSet(-1, port)) {
+                    latch.countDown()
                 }
-                var started = false
-                if (Settings.Global.getInt(cr, "adb_wifi_enabled", 0) == 1) {
+            }
+            var started = false
+            if (Settings.Global.getInt(cr, "adb_wifi_enabled", 0) == 1) {
+                try {
                     adbMdns.start()
                     latch.await(3, TimeUnit.SECONDS)
+                } finally {
                     adbMdns.stop()
-                    val port = discoveredPort.get()
-                    if (port > 0) started = startViaAdb(port, key)
                 }
-
-                if (!started) Log.e(AppConstants.TAG, "ADB start on boot failed: mDNS found no local ADB port")
-            } catch (e: Throwable) {
-                Log.e(AppConstants.TAG, "ADB start on boot failed", e)
-            } finally {
-                pending.finish()
+                val port = discoveredPort.get()
+                if (port > 0) started = startViaAdb(port, key)
             }
+            if (!started) Log.e(AppConstants.TAG, "ADB start on boot failed: mDNS found no usable local ADB port")
+            started
+        } catch (e: Throwable) {
+            Log.e(AppConstants.TAG, "ADB start on boot failed", e)
+            false
         }
     }
 
