@@ -2,7 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="home_installer_title">Install APK</string>
     <string name="home_installer_description">Install an APK through an isolated system broker</string>
-    <string name="home_installer_requires_system">Start BoomInstaller in root or system mode first</string>
+    <string name="home_installer_requires_system">Start Shizuku in root or system mode first</string>
     <string name="installer_title">APK installer</string>
     <string name="installer_intro">The APK is streamed directly to Android PackageInstaller through an isolated UID 1000 broker. No temporary APK is created.</string>
     <string name="installer_no_file">No APK selected</string>
@@ -12,7 +12,7 @@
     <string name="installer_service_ready">Installer service ready (UID %1$d)</string>
     <string name="installer_service_wrong_uid">Installer service has unsupported UID %1$d</string>
     <string name="installer_service_disconnected">Installer service disconnected</string>
-    <string name="installer_boom_service_required">Start the BoomInstaller service before installing an APK</string>
+    <string name="installer_boom_service_required">Start the Shizuku service before installing an APK</string>
     <string name="installer_selected_file_size">%1$s · %2$s</string>
     <string name="installer_apk_unreadable">The selected APK cannot be read</string>
     <string name="installer_opening_apk">Opening APK…</string>

@@ -1,5 +1,6 @@
 package rikka.shizuku.server;
 
+import static rikka.shizuku.server.ServerConstants.MANAGER_APPLICATION_ID;
 import static rikka.shizuku.server.ServerConstants.PERMISSION;
 
 import android.content.pm.PackageInfo;
@@ -104,6 +105,16 @@ public class ShizukuConfigManager extends ConfigManager {
         this.config = load();
 
         boolean changed = false;
+        boolean resetClientGrants = false;
+
+        if (!MANAGER_APPLICATION_ID.equals(config.manager)) {
+            LOGGER.i("authorization manager changed from %s to %s; reset client grants",
+                    config.manager, MANAGER_APPLICATION_ID);
+            config.packages = new ArrayList<>();
+            config.manager = MANAGER_APPLICATION_ID;
+            changed = true;
+            resetClientGrants = true;
+        }
 
         if (config.packages == null) {
             config.packages = new ArrayList<>();
@@ -158,12 +169,22 @@ public class ShizukuConfigManager extends ConfigManager {
                 }
 
                 int uid = pi.applicationInfo.uid;
-                boolean allowed;
-                try {
-                    allowed = PermissionManagerApis.checkPermission(PERMISSION, uid) == PackageManager.PERMISSION_GRANTED;
-                } catch (Throwable e) {
-                    LOGGER.w("checkPermission");
-                    continue;
+                boolean allowed = false;
+                if (resetClientGrants) {
+                    try {
+                        PermissionManagerApis.revokeRuntimePermission(pi.packageName, PERMISSION, userId);
+                    } catch (Throwable e) {
+                        // Keep the Shizuku config denied even if this firmware refuses the
+                        // PackageManager cleanup. The config entry is authoritative for clients.
+                        LOGGER.w(e, "revoke migrated permission for %s", pi.packageName);
+                    }
+                } else {
+                    try {
+                        allowed = PermissionManagerApis.checkPermission(PERMISSION, uid) == PackageManager.PERMISSION_GRANTED;
+                    } catch (Throwable e) {
+                        LOGGER.w("checkPermission");
+                        continue;
+                    }
                 }
 
                 List<String> packages = new ArrayList<>();

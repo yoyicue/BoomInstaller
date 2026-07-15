@@ -126,7 +126,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
 
         translationPreference.summary =
-            context.getString(R.string.settings_translation_summary, context.getString(R.string.app_name))
+            context.getString(R.string.settings_translation_summary, context.getString(R.string.shizuku_name))
         translationPreference.setOnPreferenceClickListener {
             CustomTabsHelper.launchUrlOrCopy(context, context.getString(R.string.translation_url))
             true

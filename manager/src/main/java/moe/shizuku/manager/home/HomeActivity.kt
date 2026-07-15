@@ -47,6 +47,7 @@ abstract class HomeActivity : AppBarActivity() {
 
         val binding = HomeActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        supportActionBar?.setTitle(R.string.product_title)
 
         homeModel.serviceStatus.observe(this) {
             if (it.status == Status.SUCCESS) {

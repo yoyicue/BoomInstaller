@@ -51,9 +51,9 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
             else -> "uid ${status.uid}"
         }
         val title = if (ok) {
-            context.getString(R.string.home_status_service_is_running, context.getString(R.string.app_name))
+            context.getString(R.string.home_status_service_is_running, context.getString(R.string.shizuku_name))
         } else {
-            context.getString(R.string.home_status_service_not_running, context.getString(R.string.app_name))
+            context.getString(R.string.home_status_service_not_running, context.getString(R.string.shizuku_name))
         }
         val summary = if (ok) {
             if (apiVersion != Shizuku.getLatestServiceVersion() || status.patchVersion != ShizukuApiConstants.SERVER_PATCH_VERSION) {

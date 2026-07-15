@@ -17,6 +17,15 @@ public class ShizukuConfig {
     @SerializedName("packages")
     public List<PackageEntry> packages = new ArrayList<>();
 
+    /**
+     * Manager package that last wrote the authorization state.
+     *
+     * <p>This remains absent in upstream/legacy files. A differently signed manager must not
+     * silently inherit grants for a root Shizuku service.</p>
+     */
+    @SerializedName("manager")
+    public String manager;
+
     public static class PackageEntry extends ConfigPackageEntry {
 
         @SerializedName("uid")

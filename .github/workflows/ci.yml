@@ -34,6 +34,9 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
 
+      - name: Verify Shizuku compatibility boundary
+        run: ./tools/verify_shizuku_boundary.sh
+
       - name: Build debug APK
         run: ./gradlew --no-daemon :manager:assembleDebug
 

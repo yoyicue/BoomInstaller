@@ -18,26 +18,23 @@
         android:required="false" />
 
     <permission-group
-        android:name="com.yoyicue.boominstaller.permission-group.API"
+        android:name="moe.shizuku.manager.permission-group.API"
         android:description="@string/permission_group_description"
-        android:icon="@drawable/boom_launcher"
+        android:icon="@drawable/ic_system_icon"
         android:label="@string/permission_group_label" />
 
     <permission
-        android:name="com.yoyicue.boominstaller.permission.MANAGER"
+        android:name="moe.shizuku.manager.permission.MANAGER"
         android:protectionLevel="signature" />
-    <uses-permission android:name="com.yoyicue.boominstaller.permission.MANAGER" />
+    <uses-permission android:name="moe.shizuku.manager.permission.MANAGER" />
 
     <permission
-        android:name="com.yoyicue.boominstaller.permission.API_V23"
+        android:name="moe.shizuku.manager.permission.API_V23"
         android:description="@string/permission_description"
-        android:icon="@drawable/boom_launcher"
+        android:icon="@drawable/ic_system_icon"
         android:label="@string/permission_label"
-        android:permissionGroup="com.yoyicue.boominstaller.permission-group.API"
+        android:permissionGroup="moe.shizuku.manager.permission-group.API"
         android:protectionLevel="dangerous" />
-    <uses-permission
-        android:name="com.yoyicue.boominstaller.permission.API_V23"
-        tools:node="remove" />
     <uses-permission
         android:name="moe.shizuku.manager.permission.API_V23"
         tools:node="remove" />
@@ -146,7 +143,7 @@
             android:name=".legacy.LegacyIsNotSupportedActivity"
             android:excludeFromRecents="true"
             android:exported="true"
-            android:permission="com.yoyicue.boominstaller.permission.API"
+            android:permission="moe.shizuku.manager.permission.API"
             android:theme="@style/GrantPermissions">
             <intent-filter>
                 <action android:name="${applicationId}.intent.action.REQUEST_AUTHORIZATION" />

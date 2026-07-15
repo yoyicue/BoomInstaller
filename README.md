@@ -1,4 +1,4 @@
-# BoomInstaller
+# BoomInstaller (魔改Shizuku支持学而思)
 
 BoomInstaller is a device-specific Shizuku fork for XPad. Its Android package is
 `com.yoyicue.boominstaller`.
@@ -24,6 +24,21 @@ BoomInstaller APK
   -> the same starter again (system/znxrun/root)
   -> rikka.shizuku.server.ShizukuService
 ```
+
+The BoomInstaller product surface is intentionally small: application identity,
+launcher/about UI, the XPad activation endpoints, and the APK installer entry.
+Service status, permissions, application authorization, help, rish, Sui, Binder
+descriptor, transaction IDs, and the public
+`moe.shizuku.manager.permission.API_V23` contract retain their Shizuku identity.
+Standard applications built with Shizuku-API can therefore use the embedded
+service without recompilation. BoomInstaller is a replacement Shizuku manager
+for this device and must not be installed alongside another manager that owns
+the same standard dangerous permission.
+
+The authorization file records which manager package last wrote it. When an
+older or differently managed file is first opened, existing client grants are
+discarded and applications must request access again. This prevents a newly
+enabled root Shizuku service from silently inheriting another manager's grants.
 
 The Manager executes `libshizuku.so` directly from its installed native library
 directory, matching Shizuku's native starter model. The starter selects an
@@ -79,7 +94,7 @@ adb shell /data/local/tmp/xpad-install autostart enable
 
 ## APK installer
 
-When the home page reports that BoomInstaller is running as `root` or `system`,
+When the home page reports that Shizuku is running as `root` or `system`,
 open **Install APK**, select an APK with Android's document picker, and tap
 **Install**. The Manager passes the selected file descriptor to a private UID
 1000 installer broker. In root mode, only this broker is launched under UID
