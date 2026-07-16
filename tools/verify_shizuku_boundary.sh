@@ -120,6 +120,8 @@ require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUs
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   'EMBEDDED_XPAD_INSTALL_SHA256 ='
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
+  'EMBEDDED_XPAD_INSTALL_SIZE = 89264'
+require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   '288a91b83ff1b77fa19fde00c6ddb2feb38693e82bb4652ee00a54c4b55fa67e'
 reject_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   '"/data/local/tmp/xpad-install"'
