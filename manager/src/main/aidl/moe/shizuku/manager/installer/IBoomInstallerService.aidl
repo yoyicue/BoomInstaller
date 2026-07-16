@@ -9,4 +9,5 @@ interface IBoomInstallerService {
     boolean isBusy() = 2;
     void install(in ParcelFileDescriptor apk, long size, String displayName,
             IInstallCallback callback) = 3;
+    void checkInstallerStatus(IInstallCallback callback) = 4;
 }

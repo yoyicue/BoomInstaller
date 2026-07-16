@@ -34,6 +34,7 @@ class InstallerActivity : AppBarActivity() {
     private var service: IBoomInstallerService? = null
     private var serviceBound = false
     private var installing = false
+    private var repairPending = false
 
     private val userServiceArgs by lazy {
         Shizuku.UserServiceArgs(
@@ -65,6 +66,25 @@ class InstallerActivity : AppBarActivity() {
             service = null
             if (!installing) binding.status.setText(R.string.installer_service_disconnected)
             updateActions()
+        }
+    }
+
+    private val statusCallback = object : IInstallCallback.Stub() {
+        override fun onStatus(message: String) = runOnUiThread { binding.status.text = message }
+        override fun onProgress(writtenBytes: Long, totalBytes: Long) = Unit
+        override fun onFinished(status: Int, message: String, packageName: String) {
+            runOnUiThread {
+                installing = false
+                binding.progress.visibility = View.GONE
+                repairPending = status != PackageInstaller.STATUS_SUCCESS
+                binding.recheckButton.visibility = if (repairPending) View.VISIBLE else View.GONE
+                binding.status.text = when (status) {
+                    PackageInstaller.STATUS_SUCCESS -> getString(R.string.installer_identity_ready)
+                    BoomInstallerUserService.STATUS_REPAIR_PENDING -> getString(R.string.installer_repair_pending)
+                    else -> getString(R.string.installer_failed, status, message)
+                }
+                updateActions()
+            }
         }
     }
 
@@ -115,6 +135,11 @@ class InstallerActivity : AppBarActivity() {
                     } else {
                         getString(R.string.installer_success_package, packageName)
                     }
+                } else if (status == BoomInstallerUserService.STATUS_REPAIR_PENDING) {
+                    repairPending = true
+                    binding.progress.visibility = View.GONE
+                    binding.recheckButton.visibility = View.VISIBLE
+                    binding.status.setText(R.string.installer_repair_pending)
                 } else {
                     binding.progress.visibility = View.GONE
                     binding.status.text = getString(
@@ -156,6 +181,7 @@ class InstallerActivity : AppBarActivity() {
             openApk.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream"))
         }
         binding.installButton.setOnClickListener { installSelected() }
+        binding.recheckButton.setOnClickListener { recheckInstallerIdentity() }
 
         Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
         Shizuku.addBinderDeadListener(binderDeadListener)
@@ -275,7 +301,27 @@ class InstallerActivity : AppBarActivity() {
 
     private fun updateActions() {
         binding.selectButton.isEnabled = !installing
-        binding.installButton.isEnabled = !installing && selection != null && service != null
+        binding.installButton.isEnabled = !installing && !repairPending && selection != null && service != null
+        binding.recheckButton.isEnabled = !installing && service != null
+    }
+
+    private fun recheckInstallerIdentity() {
+        val remote = service ?: return
+        installing = true
+        binding.progress.visibility = View.VISIBLE
+        binding.progress.isIndeterminate = true
+        binding.status.setText(R.string.installer_rechecking)
+        updateActions()
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { remote.checkInstallerStatus(statusCallback) }.onFailure {
+                withContext(Dispatchers.Main) {
+                    installing = false
+                    binding.progress.visibility = View.GONE
+                    showError(it)
+                    updateActions()
+                }
+            }
+        }
     }
 
     private fun showError(error: Throwable) {

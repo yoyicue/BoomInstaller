@@ -32,12 +32,13 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
 
     private static final String TAG = "BoomInstallerService";
     private static final int BUFFER_SIZE = 128 * 1024;
-    private static final long CLI_TIMEOUT_SECONDS = 240;
+    public static final int STATUS_REPAIR_PENDING = -76;
+    private static final long CLI_TIMEOUT_SECONDS = 420;
     private static final String EMBEDDED_XPAD_INSTALL_ASSET = "xpad-install";
-    private static final String REQUIRED_XPAD_INSTALL_VERSION = "0.2.6";
+    private static final String REQUIRED_XPAD_INSTALL_VERSION = "0.2.7";
     private static final String EMBEDDED_XPAD_INSTALL_SHA256 =
-            "288a91b83ff1b77fa19fde00c6ddb2feb38693e82bb4652ee00a54c4b55fa67e";
-    private static final long EMBEDDED_XPAD_INSTALL_SIZE = 89264;
+            "ae3937467217c1a02b166ebe92f20fb57a00a9739db56a8479d09ad913a73b2a";
+    private static final long EMBEDDED_XPAD_INSTALL_SIZE = 89584;
     private static final File WORK_ROOT = new File("/data/local/tmp/.boominstaller");
     private static final File LOG_ROOT = new File(WORK_ROOT, "logs");
     private static final int MAX_LOG_FILES = 12;
@@ -94,6 +95,46 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
             }
         }, "BoomInstallerWorker");
         worker.start();
+    }
+
+    @Override
+    public void checkInstallerStatus(IInstallCallback callback) {
+        if (callback == null) return;
+        if (!busy.compareAndSet(false, true)) {
+            notifyFinished(callback, PackageInstaller.STATUS_FAILURE_CONFLICT,
+                    "Another operation is already running", "");
+            return;
+        }
+        new Thread(() -> {
+            File cli = null;
+            try {
+                ensureDirectory(WORK_ROOT, 0700);
+                ensureDirectory(LOG_ROOT, 0700);
+                long operationId = System.currentTimeMillis();
+                File logFile = new File(LOG_ROOT,
+                        "status-" + operationId + "-" + Process.myPid() + ".log");
+                writeLogHeader(logFile, "znxrun-status", 0);
+                cli = stageEmbeddedXpadInstaller(operationId, logFile);
+                notifyStatus(callback, context.getString(R.string.installer_rechecking));
+                // This recovery action is deliberately read-only and must remain status-only.
+                int exit = runLogged(logFile, 30,
+                        cli.getAbsolutePath(), "znxrun", "status");
+                String output = readTail(logFile, 32 * 1024);
+                boolean healthy = exit == 0 && output.contains("ZNXRUN_STATUS status=healthy");
+                appendLog(logFile, "status_check_exit=" + exit + " healthy=" + healthy);
+                notifyFinished(callback,
+                        healthy ? PackageInstaller.STATUS_SUCCESS : STATUS_REPAIR_PENDING,
+                        healthy ? context.getString(R.string.installer_identity_ready)
+                                : context.getString(R.string.installer_repair_pending), "");
+            } catch (Throwable error) {
+                Log.e(TAG, "checkInstallerStatus", error);
+                notifyFinished(callback, PackageInstaller.STATUS_FAILURE,
+                        error.getClass().getSimpleName() + ": " + safeMessage(error), "");
+            } finally {
+                if (cli != null && cli.exists()) cli.delete();
+                busy.set(false);
+            }
+        }, "BoomInstallerStatusWorker").start();
     }
 
     private void installInternal(ParcelFileDescriptor apk, long size, String displayName,
@@ -171,6 +212,12 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
                 notifyFinished(callback, PackageInstaller.STATUS_FAILURE,
                         context.getString(R.string.installer_reboot_required,
                                 logFile.getAbsolutePath()), packageName);
+                return;
+            }
+            if (exitCode == 76) {
+                appendLog(logFile, "result=repair-pending");
+                notifyFinished(callback, STATUS_REPAIR_PENDING,
+                        context.getString(R.string.installer_repair_pending), packageName);
                 return;
             }
             if (exitCode != 0) {
