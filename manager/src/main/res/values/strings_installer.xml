@@ -18,7 +18,7 @@
     <string name="installer_opening_apk">Opening APK…</string>
     <string name="installer_checking_cli">Verifying BoomInstaller’s embedded installation engine…</string>
     <string name="installer_installing_managed">Installing through managed 0044; an automatic repair may take 10–60 seconds…</string>
-    <string name="installer_cli_missing">The embedded xpad-install v0.2.5 engine failed integrity or self-test checks. Reinstall the official BoomInstaller APK.</string>
+    <string name="installer_cli_missing">The embedded xpad-install v0.2.6 engine failed integrity or self-test checks. Reinstall the official BoomInstaller APK.</string>
     <string name="installer_reboot_required">The protected installer stopped because a core process changed. Restart the tablet normally before trying again. Diagnostic log: %1$s</string>
     <string name="installer_cli_failed">xpad-install failed (exit %1$d). Diagnostic log: %2$s%3$s</string>
     <string name="installer_verification_failed">Android did not report the expected installed package after xpad-install completed. Diagnostic log: %1$s</string>

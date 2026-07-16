@@ -18,7 +18,7 @@
     <string name="installer_opening_apk">正在打开 APK…</string>
     <string name="installer_checking_cli">正在校验 BoomInstaller 内置安装引擎…</string>
     <string name="installer_installing_managed">正在通过受管 0044 安装；自动修复可能需要 10–60 秒…</string>
-    <string name="installer_cli_missing">内置 xpad-install v0.2.5 未通过完整性或自检，请重新安装官方 BoomInstaller APK。</string>
+    <string name="installer_cli_missing">内置 xpad-install v0.2.6 未通过完整性或自检，请重新安装官方 BoomInstaller APK。</string>
     <string name="installer_reboot_required">核心进程发生变化，受保护的安装器已停止。请普通重启平板后再试。诊断日志：%1$s</string>
     <string name="installer_cli_failed">xpad-install 失败（退出码 %1$d）。诊断日志：%2$s%3$s</string>
     <string name="installer_verification_failed">xpad-install 完成后，Android 未报告预期的安装包。诊断日志：%1$s</string>

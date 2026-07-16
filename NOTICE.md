@@ -23,9 +23,9 @@ The canonical source repository is
 <https://github.com/yoyicue/BoomInstaller>. `xpad-installer` is a separate
 program and is not another name for this Android application.
 
-The distributed APK contains `xpad-installer` v0.2.5 as a separately executed
-ARM64 program. Its exact source is tag `v0.2.5`, commit
-`52741bf48b7874881416d9e0af7ccee1dccd975c`, at
+The distributed APK contains `xpad-installer` v0.2.6 as a separately executed
+ARM64 program. Its exact source is tag `v0.2.6`, commit
+`eb27da9529662eb26360d1d1c0643f02cd469842`, at
 <https://github.com/yoyicue/xpad-installer>. That component is licensed
 GPL-3.0-only; the complete license is packaged as
 `assets/licenses/xpad-installer-GPL-3.0.txt`. The pinned artifact identity and
