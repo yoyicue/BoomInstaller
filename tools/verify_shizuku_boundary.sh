@@ -112,7 +112,7 @@ require_text manager/src/main/java/moe/shizuku/manager/receiver/BootStarterJobSe
 require_text manager/src/main/java/moe/shizuku/manager/ShizukuManagerProvider.kt \
   'AUTO_START_KEY_NAME = "shizuku"'
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
-  'REQUIRED_XPAD_INSTALL_VERSION = "0.2.4"'
+  'REQUIRED_XPAD_INSTALL_VERSION = "0.2.5"'
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   'context.getAssets().open(EMBEDDED_XPAD_INSTALL_ASSET)'
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
@@ -120,12 +120,12 @@ require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUs
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   'EMBEDDED_XPAD_INSTALL_SHA256 ='
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
-  '014b8095f637e3a70b16ac6bca9a6f596bc239d62167a4508d50d136014410c5'
+  'cd21bb7b4df089361e45b72096e11aa639ec57675e6012097341dfc14ee9f388'
 reject_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   '"/data/local/tmp/xpad-install"'
-require_text third_party/xpad-installer.lock 'version=0.2.4'
+require_text third_party/xpad-installer.lock 'version=0.2.5'
 require_text third_party/xpad-installer.lock \
-  'asset_sha256=014b8095f637e3a70b16ac6bca9a6f596bc239d62167a4508d50d136014410c5'
+  'asset_sha256=cd21bb7b4df089361e45b72096e11aa639ec57675e6012097341dfc14ee9f388'
 require_text manager/build.gradle prepareEmbeddedXpadInstaller
 require_text tools/prepare_xpad_installer.sh BOOM_EMBEDDED_XPAD_PREPARE_OK
 require_text tools/verify_embedded_xpad_installer.sh BOOM_EMBEDDED_XPAD_VERIFY_OK
