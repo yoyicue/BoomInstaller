@@ -145,6 +145,8 @@ actual_cert=$(sed -n \
 output_badging=$("$AAPT2_BIN" dump badging "$OUTPUT")
 [[ "$output_badging" == *"package: name='$EXPECTED_PACKAGE'"* ]] ||
   die signed-package-mismatch
+"$ROOT/tools/verify_embedded_xpad_installer.sh" "$OUTPUT" >/dev/null ||
+  die embedded-xpad-installer
 
 unset BOOM_RELEASE_STORE_PASSWORD BOOM_RELEASE_KEY_PASSWORD
 printf 'BOOM_RELEASE_SIGN_OK input_sha256=%s output_sha256=%s cert_sha256=%s output=%s\n' \

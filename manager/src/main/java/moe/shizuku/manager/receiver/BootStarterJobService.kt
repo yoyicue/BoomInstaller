@@ -128,7 +128,7 @@ class BootStarterJobService : JobService() {
 
         val key = AdbKey(
             PreferenceAdbKeyStore(ShizukuSettings.getPreferences()),
-            "boominstaller"
+            "shizuku"
         )
         val ports = LinkedBlockingQueue<Int>()
         val seen = HashSet<Int>()
@@ -172,7 +172,9 @@ class BootStarterJobService : JobService() {
                 record("adb-command-failed", output.toString().trim().takeLast(800))
                 return false
             }
-            awaitServer(android.os.Process.SHELL_UID, SERVER_VERIFY_MILLIS)
+            val accepted = awaitServer(android.os.Process.SHELL_UID, SERVER_VERIFY_MILLIS)
+            if (accepted) record("adb-key", "shizuku")
+            accepted
         } catch (error: Throwable) {
             Log.w(AppConstants.TAG, "Local ADB candidate $port failed", error)
             false

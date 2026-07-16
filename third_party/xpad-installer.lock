@@ -1,0 +1,11 @@
+version=0.2.4
+tag=v0.2.4
+commit=c472e6a011a726373e09071c3a2984d24d65fe38
+asset=xpad-install
+asset_size=88856
+asset_sha256=014b8095f637e3a70b16ac6bca9a6f596bc239d62167a4508d50d136014410c5
+asset_url=https://github.com/yoyicue/xpad-installer/releases/download/v0.2.4/xpad-install
+license=GPL-3.0-only
+license_size=35149
+license_sha256=3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986
+license_url=https://raw.githubusercontent.com/yoyicue/xpad-installer/c472e6a011a726373e09071c3a2984d24d65fe38/LICENSE

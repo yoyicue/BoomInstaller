@@ -190,7 +190,7 @@ int main(int argc, char *argv[]) {
     }
 
     uid_t uid = getuid();
-    if (uid != 0 && uid != 1000 && uid != 2000 && uid != 10072) {
+    if (uid != 0 && uid != 2000) {
         perrorf("fatal: unsupported BoomInstaller server uid=%d.\n", uid);
         exit(EXIT_FATAL_UID);
     }

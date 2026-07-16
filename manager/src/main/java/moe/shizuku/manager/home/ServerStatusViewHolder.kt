@@ -45,8 +45,6 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
         }
         val user = when (status.uid) {
             0 -> "root"
-            1000 -> "system"
-            10072 -> "znxrun"
             2000 -> "adb"
             else -> "uid ${status.uid}"
         }

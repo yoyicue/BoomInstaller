@@ -27,6 +27,11 @@ android {
         viewBinding true
         prefab true
     }
+    sourceSets {
+        main {
+            assets.srcDir(layout.buildDirectory.dir('generated/boomInstallerAssets'))
+        }
+    }
     signingConfigs {
         sign
     }
@@ -65,6 +70,15 @@ android {
     lint {
         checkReleaseBuilds false
     }
+}
+
+def embeddedXpadInstallerAssets = layout.buildDirectory.dir('generated/boomInstallerAssets')
+def prepareEmbeddedXpadInstaller = tasks.register('prepareEmbeddedXpadInstaller', Exec) {
+    inputs.file(rootProject.file('third_party/xpad-installer.lock'))
+    inputs.file(rootProject.file('tools/prepare_xpad_installer.sh'))
+    outputs.dir(embeddedXpadInstallerAssets)
+    commandLine rootProject.file('tools/prepare_xpad_installer.sh'),
+            embeddedXpadInstallerAssets.get().asFile
 }
 
 autoResConfig {
@@ -106,6 +120,7 @@ def collapseReleaseResourceNames = task('collapseReleaseResourceNames').doLast {
 }
 
 afterEvaluate {
+    tasks.getByName('preBuild').dependsOn(prepareEmbeddedXpadInstaller)
     tasks.getByName('optimizeReleaseResources').finalizedBy(collapseReleaseResourceNames)
     tasks.getByName('preReleaseBuild').dependsOn(':shell:assembleRelease')
     tasks.getByName('preDebugBuild').dependsOn(':shell:assembleDebug')

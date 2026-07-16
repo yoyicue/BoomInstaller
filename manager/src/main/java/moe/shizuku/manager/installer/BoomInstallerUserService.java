@@ -20,6 +20,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.concurrent.TimeUnit;
@@ -32,8 +33,11 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
     private static final String TAG = "BoomInstallerService";
     private static final int BUFFER_SIZE = 128 * 1024;
     private static final long CLI_TIMEOUT_SECONDS = 240;
-    private static final String XPAD_INSTALL = "/data/local/tmp/xpad-install";
-    private static final String REQUIRED_XPAD_INSTALL_VERSION = "0.2.3";
+    private static final String EMBEDDED_XPAD_INSTALL_ASSET = "xpad-install";
+    private static final String REQUIRED_XPAD_INSTALL_VERSION = "0.2.4";
+    private static final String EMBEDDED_XPAD_INSTALL_SHA256 =
+            "014b8095f637e3a70b16ac6bca9a6f596bc239d62167a4508d50d136014410c5";
+    private static final long EMBEDDED_XPAD_INSTALL_SIZE = 88856;
     private static final File WORK_ROOT = new File("/data/local/tmp/.boominstaller");
     private static final File LOG_ROOT = new File(WORK_ROOT, "logs");
     private static final int MAX_LOG_FILES = 12;
@@ -115,29 +119,26 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
                 "install-" + operationId + "-" + Process.myPid() + ".log");
         writeLogHeader(logFile, displayName, size);
 
-        File cli = new File(XPAD_INSTALL);
-        if (!cli.isFile() || !cli.canExecute()) {
-            notifyFinished(callback, PackageInstaller.STATUS_FAILURE,
-                    context.getString(R.string.installer_cli_missing), "");
-            return;
-        }
-
-        int selfTest = runLogged(logFile, CLI_TIMEOUT_SECONDS, XPAD_INSTALL, "self-test");
-        appendLog(logFile, "self_test_exit=" + selfTest);
-        String selfTestOutput = readTail(logFile, 32 * 1024);
-        if (selfTest != 0 || !selfTestOutput.contains("XPAD_INSTALL_SELF_TEST status=ok")
-                || !versionAtLeast(extractVersion(selfTestOutput), REQUIRED_XPAD_INSTALL_VERSION)) {
-            appendLog(logFile, "result=cli-unavailable");
-            notifyFinished(callback, PackageInstaller.STATUS_FAILURE,
-                    context.getString(R.string.installer_cli_missing), "");
-            return;
-        }
-
+        File cli = null;
         File staged = new File(WORK_ROOT,
                 "stage-" + operationId + "-" + Process.myPid() + ".apk");
         String packageName = "";
         long expectedVersion = -1;
         try {
+            cli = stageEmbeddedXpadInstaller(operationId, logFile);
+            int selfTest = runLogged(logFile, CLI_TIMEOUT_SECONDS,
+                    cli.getAbsolutePath(), "self-test");
+            appendLog(logFile, "self_test_exit=" + selfTest);
+            String selfTestOutput = readTail(logFile, 32 * 1024);
+            if (selfTest != 0 || !selfTestOutput.contains("XPAD_INSTALL_SELF_TEST status=ok")
+                    || !versionAtLeast(extractVersion(selfTestOutput),
+                            REQUIRED_XPAD_INSTALL_VERSION)) {
+                appendLog(logFile, "result=embedded-cli-unavailable");
+                notifyFinished(callback, PackageInstaller.STATUS_FAILURE,
+                        context.getString(R.string.installer_cli_missing), "");
+                return;
+            }
+
             try (InputStream input = new BufferedInputStream(
                         new ParcelFileDescriptor.AutoCloseInputStream(apk), BUFFER_SIZE);
                  FileOutputStream fileOutput = new FileOutputStream(staged);
@@ -161,7 +162,8 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
             notifyStatus(callback, context.getString(R.string.installer_installing_managed));
             appendLog(logFile, "phase=managed-0044-install");
             int exitCode = runLogged(logFile, CLI_TIMEOUT_SECONDS,
-                    XPAD_INSTALL, "install", "--backend", "auto", staged.getAbsolutePath());
+                    cli.getAbsolutePath(), "install", "--backend", "auto",
+                    staged.getAbsolutePath());
             appendLog(logFile, "xpad_install_exit=" + exitCode);
             String tail = compactDiagnosticTail(readTail(logFile, 8 * 1024));
             if (exitCode == 75) {
@@ -198,7 +200,82 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
             if (!removed) {
                 Log.w(TAG, "cannot remove staging file " + staged);
             }
+            boolean cliRemoved = cli == null || !cli.exists() || cli.delete();
+            appendLog(logFile, "embedded_cli_removed=" + cliRemoved);
+            if (!cliRemoved) {
+                Log.w(TAG, "cannot remove embedded installer engine " + cli);
+            }
         }
+    }
+
+    private File stageEmbeddedXpadInstaller(long operationId, File logFile) throws Exception {
+        File cli = new File(WORK_ROOT,
+                "xpad-install-" + operationId + "-" + Process.myPid());
+        File partial = new File(cli.getAbsolutePath() + ".partial");
+        if (partial.exists() && !partial.delete()) {
+            throw new IllegalStateException("Cannot clear embedded installer partial file");
+        }
+
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        long written = 0;
+        boolean activated = false;
+        try {
+            try (InputStream input = new BufferedInputStream(
+                        context.getAssets().open(EMBEDDED_XPAD_INSTALL_ASSET), BUFFER_SIZE);
+                 FileOutputStream fileOutput = new FileOutputStream(partial);
+                 BufferedOutputStream output = new BufferedOutputStream(fileOutput, BUFFER_SIZE)) {
+                byte[] buffer = new byte[BUFFER_SIZE];
+                for (;;) {
+                    int count = input.read(buffer);
+                    if (count < 0) break;
+                    if (count == 0) continue;
+                    written += count;
+                    if (written > EMBEDDED_XPAD_INSTALL_SIZE) {
+                        throw new SecurityException("Embedded installer engine is oversized");
+                    }
+                    digest.update(buffer, 0, count);
+                    output.write(buffer, 0, count);
+                }
+                output.flush();
+                fileOutput.getFD().sync();
+            }
+
+            String actualSha256 = toHex(digest.digest());
+            if (written != EMBEDDED_XPAD_INSTALL_SIZE
+                    || !EMBEDDED_XPAD_INSTALL_SHA256.equals(actualSha256)) {
+                throw new SecurityException("Embedded installer engine identity mismatch");
+            }
+            Os.chmod(partial.getAbsolutePath(), 0700);
+            if (cli.exists() && !cli.delete()) {
+                throw new IllegalStateException("Cannot replace embedded installer engine");
+            }
+            if (!partial.renameTo(cli)) {
+                throw new IllegalStateException("Cannot activate embedded installer engine");
+            }
+            Os.chmod(cli.getAbsolutePath(), 0700);
+            appendLog(logFile, "installer_engine=embedded-xpad-install version="
+                    + REQUIRED_XPAD_INSTALL_VERSION + " sha256=" + actualSha256);
+            activated = true;
+            return cli;
+        } finally {
+            if (partial.exists() && !partial.delete()) {
+                Log.w(TAG, "cannot remove embedded installer partial " + partial);
+            }
+            if (!activated && cli.exists() && !cli.delete()) {
+                Log.w(TAG, "cannot remove failed embedded installer engine " + cli);
+            }
+        }
+    }
+
+    private static String toHex(byte[] value) {
+        char[] alphabet = "0123456789abcdef".toCharArray();
+        char[] output = new char[value.length * 2];
+        for (int index = 0; index < value.length; index++) {
+            int item = value[index] & 0xff;
+            output[index * 2] = alphabet[item >>> 4];
+            output[index * 2 + 1] = alphabet[item & 0x0f];
+        }
+        return new String(output);
     }
 
     private boolean verifyInstalled(String packageName, long expectedVersion)
@@ -222,8 +299,9 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
     }
 
     private static void cleanOldWorkFiles() {
-        File[] staging = WORK_ROOT.listFiles(file -> file.isFile()
-                && file.getName().startsWith("stage-") && file.getName().endsWith(".apk"));
+        File[] staging = WORK_ROOT.listFiles(file -> file.isFile() && (
+                file.getName().startsWith("stage-") && file.getName().endsWith(".apk")
+                || file.getName().startsWith("xpad-install-")));
         if (staging != null) {
             for (File file : staging) file.delete();
         }

@@ -10,4 +10,5 @@
 /.idea
 /manager/signing.properties
 /out
+/.boom-deps
 /signing.properties

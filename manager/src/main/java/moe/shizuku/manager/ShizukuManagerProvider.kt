@@ -36,7 +36,7 @@ class ShizukuManagerProvider : ShizukuProvider() {
         private const val METHOD_GET_AUTO_START_STATUS = "getAutoStartStatus"
         private const val EXTRA_PAIRING_CODE = "pairingCode"
         private const val EXTRA_PAIRED = "paired"
-        private const val AUTO_START_KEY_NAME = "boominstaller"
+        private const val AUTO_START_KEY_NAME = "shizuku"
     }
 
     override fun onCreate(): Boolean {

@@ -15,9 +15,18 @@ Material modifications in this fork include:
 - the BoomInstaller application identity and branding;
 - root/local-ADB Shizuku activation with verified ordinary-boot persistence;
 - separation of Shizuku control-plane identity from the XPad installer identities;
-- an XPad 0044-first APK installation front end for the separate `xpad-install` CLI;
+- a standalone XPad 0044-first APK installation front end that verifies,
+  temporarily extracts, executes, and removes a locked `xpad-install` engine;
 - protected production signing and release verification tooling.
 
 The canonical source repository is
 <https://github.com/yoyicue/BoomInstaller>. `xpad-installer` is a separate
-device CLI and is not another name for this Android application.
+program and is not another name for this Android application.
+
+The distributed APK contains `xpad-installer` v0.2.4 as a separately executed
+ARM64 program. Its exact source is tag `v0.2.4`, commit
+`c472e6a011a726373e09071c3a2984d24d65fe38`, at
+<https://github.com/yoyicue/xpad-installer>. That component is licensed
+GPL-3.0-only; the complete license is packaged as
+`assets/licenses/xpad-installer-GPL-3.0.txt`. The pinned artifact identity and
+source location are recorded in `third_party/xpad-installer.lock`.

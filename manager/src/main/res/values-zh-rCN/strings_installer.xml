@@ -4,7 +4,7 @@
     <string name="home_installer_description">通过学而思原生安装通道安装 APK</string>
     <string name="home_installer_requires_system">请先以 Root 或无线调试模式启动 Shizuku</string>
     <string name="installer_title">APK 安装器</string>
-    <string name="installer_intro">APK 会先复制到自动清理的临时文件，再只通过受管 0044 安装，通常需要 10–30 秒。若 0044 不可用，受保护的 31317 会先补回 0044，总计最多约 60 秒；31317 不会安装目标 APK。</string>
+    <string name="installer_intro">BoomInstaller 自带并校验安装引擎。APK 会先复制到自动清理的临时文件，再只通过受管 0044 安装，通常需要 10–30 秒。若 0044 不可用，受保护的 31317 会先补回 0044，总计最多约 60 秒；31317 不会安装目标 APK。</string>
     <string name="installer_no_file">尚未选择 APK</string>
     <string name="installer_select_apk">选择 APK</string>
     <string name="installer_install">安装</string>
@@ -16,9 +16,9 @@
     <string name="installer_selected_file_size">%1$s · %2$s</string>
     <string name="installer_apk_unreadable">无法读取所选 APK</string>
     <string name="installer_opening_apk">正在打开 APK…</string>
-    <string name="installer_checking_cli">正在检查受保护的 xpad-install 后端…</string>
+    <string name="installer_checking_cli">正在校验 BoomInstaller 内置安装引擎…</string>
     <string name="installer_installing_managed">正在通过受管 0044 安装；自动修复可能需要 10–60 秒…</string>
-    <string name="installer_cli_missing">需要 xpad-install v0.2.3 或更高版本，请先运行 xpad2 install xpad-installer。</string>
+    <string name="installer_cli_missing">内置 xpad-install v0.2.4 未通过完整性或自检，请重新安装官方 BoomInstaller APK。</string>
     <string name="installer_reboot_required">核心进程发生变化，受保护的安装器已停止。请普通重启平板后再试。诊断日志：%1$s</string>
     <string name="installer_cli_failed">xpad-install 失败（退出码 %1$d）。诊断日志：%2$s%3$s</string>
     <string name="installer_verification_failed">xpad-install 完成后，Android 未报告预期的安装包。诊断日志：%1$s</string>
