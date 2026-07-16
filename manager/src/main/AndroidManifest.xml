@@ -158,6 +158,13 @@
             android:exported="false"
             android:foregroundServiceType="shortService" />
 
+        <service
+            android:name=".receiver.BootStarterJobService"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
         <receiver
             android:name=".receiver.BootCompleteReceiver"
             android:directBootAware="true"

@@ -15,14 +15,12 @@ The former private repository name `xpad2_installer` is retired. It referred to
 this Android app and must not be confused with the separate `xpad-installer` CLI.
 
 The project deliberately keeps the upstream Shizuku server, AIDL, API, and user
-service model. The only device-specific boundary is service activation:
+service model. Service activation and APK installation are separate planes:
 
 ```text
-BoomInstaller APK
-  -> packaged libshizuku.so starter (shell/root)
-  -> XPad identity selection inside the same native executable
-  -> the same starter again (system/znxrun/root)
-  -> rikka.shizuku.server.ShizukuService
+control plane: root or paired local ADB shell -> libshizuku.so -> ShizukuService
+install plane: BoomInstaller shell broker -> xpad-install -> 0044 first
+                                                    `-> guarded 31317 repair if absent
 ```
 
 The BoomInstaller product surface is intentionally small: application identity,
@@ -41,21 +39,14 @@ discarded and applications must request access again. This prevents a newly
 enabled root Shizuku service from silently inheriting another manager's grants.
 
 The Manager executes `libshizuku.so` directly from its installed native library
-directory, matching Shizuku's native starter model. The starter selects an
-available identity:
-
-- UID 10072 through the 0044 `run-as znxrun` path, only when that UID has the
-  framework permission required to deliver Binder;
-- UID 0 when the starter is launched from a root shell;
-- UID 1000 through the CVE-2024-31317 system runner.
-
-On TALIH_PD2 firmware, UID 10072 can install APKs but cannot call
-`getContentProviderExternal`, so BoomInstaller activation falls back to UID 1000.
-For the 31317 path, the payload is passed to Android's settings command directly
-from memory. It then executes the packaged starter and installed APK in place.
-There is no external helper, copied DEX, or temporary-directory dependency in the
-BoomInstaller runtime. The hidden setting and short-lived system runner are removed
-before activation returns.
+directory, matching Shizuku's native starter model. The starter preserves the
+identity that launched it: UID 0 from root or UID 2000 from local ADB. BoomInstaller
+contains no CVE-2024-31317 payload and never turns UID 10072/0044 or UID 1000 into
+a persistent Shizuku runtime. On TALIH_PD2 firmware, UID 10072 remains valuable as
+the preferred OEM installer identity even though it cannot deliver the Shizuku
+Binder. The companion `xpad-install` CLI owns that installer identity and the
+hardened, bounded 31317 repair transaction. Target APK bytes are never submitted
+through 31317.
 
 ## One-time activation
 
@@ -75,14 +66,16 @@ STARTER=${APK%/base.apk}/lib/arm64/libshizuku.so
 During this first run, BoomInstaller creates its own ADB key and pairs it with
 Android wireless debugging over loopback. The private key never leaves the APK.
 The command waits for this firmware's pairing service to settle, refreshes the
-Wi-Fi ADB transport, selects the available XPad identity, and starts the service.
+Wi-Fi ADB transport, and starts the service as the current root or ADB-shell
+identity. Activation never enters an installer exploit path.
 
-On later ordinary boots, `BootCompleteReceiver` first restores the last working
-mode. If that mode is root but KernelSU is not ready yet, it automatically falls
-back to the paired local wireless-debugging path: it discovers the device's
-random TLS port with mDNS, authenticates with the paired key, and executes the
-installed `libshizuku.so`. No computer, exploit, copied DEX, or
-`/data/local/tmp` file is used by that boot path. Pair again only after
+On later ordinary boots, `BootCompleteReceiver` schedules a network-constrained
+job instead of running inside the short boot-broadcast window. The job waits up
+to 20 seconds for a configured root service, then (when needed) spends up to 60
+seconds discovering the random TLS port, authenticating with the paired key, and
+starting the installed `libshizuku.so` as ADB shell. It accepts success only after
+the Binder arrives with UID 0 or 2000. No computer, installer exploit, copied DEX,
+or `/data/local/tmp` file is used by that boot path. Pair again only after
 uninstalling BoomInstaller, clearing its app data, revoking the paired device, or
 manually disabling the required wireless-debugging settings.
 
@@ -92,16 +85,31 @@ To provision persistence without restarting the service in the current boot:
 adb shell /data/local/tmp/xpad-install autostart enable
 ```
 
+The last boot-start result is persisted in device-protected storage and exposed
+read-only to root/ADB shell for remote diagnosis:
+
+```shell
+adb shell content call \
+  --uri content://com.yoyicue.boominstaller.shizuku \
+  --method getAutoStartStatus
+```
+
 ## APK installer
 
-When the home page reports that Shizuku is running as `root` or `system`,
+When the home page reports that Shizuku is running as `root` or `adb`,
 open **Install APK**, select an APK with Android's document picker, and tap
-**Install**. The Manager passes the selected file descriptor to a private UID
-1000 installer broker. In root mode, only this broker is launched under UID
-1000; the main BoomInstaller service remains root. The broker streams the APK
-directly into a PackageInstaller session, attributes the session to the
-firmware-approved `com.tal.pad.znxxservice` installer, and sends progress and the
-final result back to the activity. It does not copy the APK to a temporary path.
+**Install**. The Manager passes the selected file descriptor to a private shell
+broker, which checks for `xpad-install` v0.2.3 or newer, copies the APK to a
+mode-0600 staging file, and invokes `install --backend auto`. That command repairs
+and re-verifies managed 0044 when needed, then installs every target APK only
+through 0044. Its guarded 31317 transaction is used solely to repair a missing or
+broken 0044 identity before target installation starts.
+The staging file is removed in `finally`; the latest 12 bounded operation logs are
+kept under `/data/local/tmp/.boominstaller/logs` for `xpad2log` diagnostics.
+
+The UI tells users to expect 10–30 seconds normally and up to about 60 seconds
+when repair is required. Exit 75 is reported as “ordinary reboot required” rather
+than encouraging another attempt in an unsafe boot.
 
 ## Build
 

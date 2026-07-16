@@ -1,0 +1,225 @@
+package moe.shizuku.manager.receiver
+
+import android.Manifest.permission.WRITE_SECURE_SETTINGS
+import android.app.job.JobParameters
+import android.app.job.JobService
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.SystemClock
+import android.provider.Settings
+import android.util.Log
+import com.topjohnwu.superuser.Shell
+import moe.shizuku.manager.AppConstants
+import moe.shizuku.manager.ShizukuSettings
+import moe.shizuku.manager.ShizukuSettings.LaunchMethod
+import moe.shizuku.manager.adb.AdbClient
+import moe.shizuku.manager.adb.AdbKey
+import moe.shizuku.manager.adb.AdbMdns
+import moe.shizuku.manager.adb.PreferenceAdbKeyStore
+import moe.shizuku.manager.starter.Starter
+import moe.shizuku.manager.utils.UserHandleCompat
+import rikka.shizuku.Shizuku
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * Starts BoomInstaller after networking is ready, outside BroadcastReceiver's short timeout.
+ * The service runtime is root or standard ADB shell; installer identities are never selected here.
+ */
+class BootStarterJobService : JobService() {
+
+    private val cancelled = AtomicBoolean(false)
+
+    override fun onStartJob(params: JobParameters): Boolean {
+        cancelled.set(false)
+        Thread({
+            val retry = try {
+                !startForCurrentBoot()
+            } catch (error: Throwable) {
+                record("failed", error.javaClass.simpleName + ": " + (error.message ?: "no message"))
+                true
+            }
+            jobFinished(params, retry && !cancelled.get())
+        }, "BoomInstallerBootStarter").start()
+        return true
+    }
+
+    override fun onStopJob(params: JobParameters): Boolean {
+        cancelled.set(true)
+        record("stopped", "job constraints changed")
+        return true
+    }
+
+    private fun startForCurrentBoot(): Boolean {
+        ShizukuSettings.initialize(this)
+        if (UserHandleCompat.myUserId() > 0) {
+            record("skipped", "secondary user")
+            return true
+        }
+        if (acceptedServerIsRunning()) {
+            record("already-running", "uid=${Shizuku.getUid()}")
+            return true
+        }
+
+        val mode = ShizukuSettings.getLastLaunchMode()
+        val canStartViaAdb = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            && checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
+        if (mode != LaunchMethod.ROOT && (mode != LaunchMethod.ADB || !canStartViaAdb)) {
+            record("unsupported", "mode=$mode adb=$canStartViaAdb")
+            return true
+        }
+
+        if (mode == LaunchMethod.ROOT) {
+            val rootDeadline = SystemClock.elapsedRealtime() + ROOT_WAIT_MILLIS
+            do {
+                if (cancelled.get()) return false
+                if (rootStart()) {
+                    record("started", "root")
+                    return true
+                }
+                SystemClock.sleep(ROOT_RETRY_MILLIS)
+            } while (SystemClock.elapsedRealtime() < rootDeadline)
+            if (!canStartViaAdb) {
+                record("failed", "root unavailable and local ADB not provisioned")
+                return false
+            }
+            record("fallback", "root unavailable; trying local ADB shell")
+        }
+
+        if (!canStartViaAdb) {
+            record("failed", "local ADB not provisioned")
+            return false
+        }
+        val started = adbStart()
+        record(if (started) "started" else "failed", if (started) "adb-shell" else "local ADB timeout")
+        return started
+    }
+
+    private fun rootStart(): Boolean {
+        return try {
+            if (!Shell.getShell().isRoot) {
+                Shell.getCachedShell()?.close()
+                return false
+            }
+            val result = Shell.cmd(Starter.internalCommand).exec()
+            result.code == 0 && awaitServer(0, SERVER_VERIFY_MILLIS)
+        } catch (error: Throwable) {
+            Shell.getCachedShell()?.close()
+            Log.w(AppConstants.TAG, "Root boot start attempt failed", error)
+            false
+        }
+    }
+
+    private fun adbStart(): Boolean {
+        val resolver = contentResolver
+        if (!Settings.Global.putInt(resolver, Settings.Global.ADB_ENABLED, 1)
+            || !Settings.Global.putInt(resolver, "adb_wifi_enabled", 1)
+            || !Settings.Global.putLong(resolver, "adb_allowed_connection_time", 0L)) {
+            record("failed", "wireless ADB settings write failed")
+            return false
+        }
+        if (Settings.Global.getInt(resolver, Settings.Global.ADB_ENABLED, 0) != 1
+            || Settings.Global.getInt(resolver, "adb_wifi_enabled", 0) != 1) {
+            record("failed", "wireless ADB settings verification failed")
+            return false
+        }
+
+        val key = AdbKey(
+            PreferenceAdbKeyStore(ShizukuSettings.getPreferences()),
+            "boominstaller"
+        )
+        val ports = LinkedBlockingQueue<Int>()
+        val seen = HashSet<Int>()
+        val adbMdns = AdbMdns(this, AdbMdns.TLS_CONNECT) { port ->
+            if (port > 0) ports.offer(port)
+        }
+        val deadline = SystemClock.elapsedRealtime() + ADB_WAIT_MILLIS
+        adbMdns.start()
+        try {
+            while (!cancelled.get() && SystemClock.elapsedRealtime() < deadline) {
+                if (Settings.Global.getInt(resolver, "adb_wifi_enabled", 0) != 1) {
+                    Settings.Global.putInt(resolver, "adb_wifi_enabled", 1)
+                }
+                val remaining = deadline - SystemClock.elapsedRealtime()
+                val port = ports.poll(minOf(MDNS_POLL_MILLIS, remaining), TimeUnit.MILLISECONDS)
+                    ?: continue
+                if (!seen.add(port)) continue
+                record("adb-candidate", "port=$port")
+                if (startViaAdb(port, key)) return true
+            }
+        } finally {
+            adbMdns.stop()
+        }
+        return false
+    }
+
+    private fun startViaAdb(port: Int, key: AdbKey): Boolean {
+        return try {
+            val marker = "__BOOM_START_RC_${android.os.Process.myPid()}__"
+            val output = StringBuilder()
+            AdbClient("127.0.0.1", port, key).use { client ->
+                client.connect()
+                client.shellCommand("${Starter.internalCommand}; RC=\$?; echo $marker\$RC") { bytes ->
+                    output.append(String(bytes, StandardCharsets.UTF_8))
+                    if (output.length > MAX_START_OUTPUT) {
+                        output.delete(0, output.length - MAX_START_OUTPUT)
+                    }
+                }
+            }
+            if (!output.contains(marker + "0")) {
+                record("adb-command-failed", output.toString().trim().takeLast(800))
+                return false
+            }
+            awaitServer(android.os.Process.SHELL_UID, SERVER_VERIFY_MILLIS)
+        } catch (error: Throwable) {
+            Log.w(AppConstants.TAG, "Local ADB candidate $port failed", error)
+            false
+        }
+    }
+
+    private fun acceptedServerIsRunning(): Boolean {
+        if (!Shizuku.pingBinder()) return false
+        return runCatching { Shizuku.getUid() == 0 || Shizuku.getUid() == android.os.Process.SHELL_UID }
+            .getOrDefault(false)
+    }
+
+    private fun awaitServer(expectedUid: Int, timeoutMillis: Long): Boolean {
+        val deadline = SystemClock.elapsedRealtime() + timeoutMillis
+        do {
+            if (cancelled.get()) return false
+            if (Shizuku.pingBinder()) {
+                val uid = runCatching { Shizuku.getUid() }.getOrDefault(-1)
+                if (uid == expectedUid) return true
+                record("wrong-runtime-identity", "expected=$expectedUid actual=$uid")
+                return false
+            }
+            SystemClock.sleep(250)
+        } while (SystemClock.elapsedRealtime() < deadline)
+        return false
+    }
+
+    private fun record(state: String, detail: String) {
+        val safeDetail = detail.replace('\n', ' ').replace('\r', ' ').take(1600)
+        val preferences = createDeviceProtectedStorageContext()
+            .getSharedPreferences(STATUS_PREFERENCES, MODE_PRIVATE)
+        preferences.edit()
+            .putString("state", state)
+            .putString("detail", safeDetail)
+            .putLong("timestamp", System.currentTimeMillis())
+            .commit()
+        Log.i(AppConstants.TAG, "BoomInstaller boot start: state=$state detail=$safeDetail")
+    }
+
+    companion object {
+        const val JOB_ID = 0x424f4f4d
+        const val STATUS_PREFERENCES = "boom_autostart_status"
+        private const val ROOT_WAIT_MILLIS = 20_000L
+        private const val ROOT_RETRY_MILLIS = 2_000L
+        private const val ADB_WAIT_MILLIS = 60_000L
+        private const val MDNS_POLL_MILLIS = 5_000L
+        private const val SERVER_VERIFY_MILLIS = 10_000L
+        private const val MAX_START_OUTPUT = 8_192
+    }
+}

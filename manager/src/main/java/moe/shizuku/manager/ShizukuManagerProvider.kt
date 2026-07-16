@@ -1,5 +1,7 @@
 package moe.shizuku.manager
 
+import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Binder
 import android.os.Build
@@ -11,6 +13,8 @@ import moe.shizuku.manager.adb.AdbKey
 import moe.shizuku.manager.adb.AdbMdns
 import moe.shizuku.manager.adb.AdbPairingClient
 import moe.shizuku.manager.adb.PreferenceAdbKeyStore
+import moe.shizuku.manager.receiver.BootCompleteReceiver
+import moe.shizuku.manager.receiver.BootStarterJobService
 import moe.shizuku.manager.utils.Logger.LOGGER
 import rikka.shizuku.Shizuku
 import rikka.shizuku.ShizukuApiConstants.USER_SERVICE_ARG_TOKEN
@@ -29,6 +33,7 @@ class ShizukuManagerProvider : ShizukuProvider() {
         private const val METHOD_SEND_USER_SERVICE = "sendUserService"
         private const val METHOD_PREPARE_AUTO_START = "prepareAutoStart"
         private const val METHOD_PAIR_AUTO_START = "pairAutoStart"
+        private const val METHOD_GET_AUTO_START_STATUS = "getAutoStartStatus"
         private const val EXTRA_PAIRING_CODE = "pairingCode"
         private const val EXTRA_PAIRED = "paired"
         private const val AUTO_START_KEY_NAME = "boominstaller"
@@ -41,7 +46,8 @@ class ShizukuManagerProvider : ShizukuProvider() {
     }
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
-        if (method == METHOD_PREPARE_AUTO_START || method == METHOD_PAIR_AUTO_START) {
+        if (method == METHOD_PREPARE_AUTO_START || method == METHOD_PAIR_AUTO_START
+            || method == METHOD_GET_AUTO_START_STATUS) {
             val caller = Binder.getCallingUid()
             if (caller != Process.SHELL_UID && caller != Process.ROOT_UID) {
                 throw SecurityException("auto-start provisioning requires shell or root")
@@ -49,7 +55,17 @@ class ShizukuManagerProvider : ShizukuProvider() {
         }
 
         if (method == METHOD_PREPARE_AUTO_START) {
-            ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.ADB)
+            val packageManager = requireNotNull(context).packageManager
+            for (component in arrayOf(
+                ComponentName(requireNotNull(context), BootCompleteReceiver::class.java),
+                ComponentName(requireNotNull(context), BootStarterJobService::class.java)
+            )) {
+                packageManager.setComponentEnabledSetting(
+                    component,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+            }
             return Bundle.EMPTY
         }
 
@@ -58,6 +74,18 @@ class ShizukuManagerProvider : ShizukuProvider() {
                 throw UnsupportedOperationException("wireless ADB pairing requires Android 11")
             }
             return pairAutoStart(extras)
+        }
+
+        if (method == METHOD_GET_AUTO_START_STATUS) {
+            val preferences = requireNotNull(context).createDeviceProtectedStorageContext()
+                .getSharedPreferences(BootStarterJobService.STATUS_PREFERENCES, 0)
+            return bundleOf(
+                "state" to preferences.getString("state", "never"),
+                "detail" to preferences.getString("detail", ""),
+                "timestamp" to preferences.getLong("timestamp", 0),
+                "mode" to ShizukuSettings.getLastLaunchMode(),
+                "serverUid" to if (Shizuku.pingBinder()) Shizuku.getUid() else -1
+            )
         }
 
         if (extras == null) return null
@@ -148,6 +176,9 @@ class ShizukuManagerProvider : ShizukuProvider() {
             adbMdns.stop()
         }
         error.get()?.let { LOGGER.e(it, "pairAutoStart") }
+        if (paired.get() && !ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.ADB)) {
+            throw IllegalStateException("ADB pairing succeeded but auto-start mode was not persisted")
+        }
         return bundleOf(EXTRA_PAIRED to paired.get())
     }
 }

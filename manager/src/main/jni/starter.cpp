@@ -16,7 +16,6 @@
 #include "selinux.h"
 #include "cgroup.h"
 #include "logging.h"
-#include "xpad_activation.h"
 
 #ifdef DEBUG
 #define JAVA_DEBUGGABLE
@@ -212,17 +211,6 @@ int main(int argc, char *argv[]) {
     if (apk_path.empty() || access(apk_path.c_str(), R_OK) != 0) {
         perrorf("fatal: can't access BoomInstaller APK %s\n", apk_path.c_str());
         exit(EXIT_FATAL_PM_PATH);
-    }
-
-    if (uid == 2000) {
-        char starter_path[PATH_MAX]{0};
-        ssize_t length = readlink("/proc/self/exe", starter_path, sizeof(starter_path) - 1);
-        if (length <= 0) {
-            snprintf(starter_path, sizeof(starter_path), "%s", argv[0]);
-        } else {
-            starter_path[length] = '\0';
-        }
-        return xpad::activate(starter_path, apk_path.c_str());
     }
 
     se::init();

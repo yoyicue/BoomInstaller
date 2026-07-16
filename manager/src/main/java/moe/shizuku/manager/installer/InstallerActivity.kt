@@ -78,6 +78,10 @@ class InstallerActivity : AppBarActivity() {
     }
 
     private val installCallback = object : IInstallCallback.Stub() {
+        override fun onStatus(message: String) {
+            runOnUiThread { binding.status.text = message }
+        }
+
         override fun onProgress(writtenBytes: Long, totalBytes: Long) {
             runOnUiThread {
                 binding.progress.visibility = View.VISIBLE
@@ -97,13 +101,6 @@ class InstallerActivity : AppBarActivity() {
                         formatSize(writtenBytes)
                     )
                 }
-            }
-        }
-
-        override fun onUserActionRequired(intent: Intent) {
-            runOnUiThread {
-                binding.status.setText(R.string.installer_waiting_confirmation)
-                runCatching { startActivity(intent) }.onFailure { showError(it) }
             }
         }
 

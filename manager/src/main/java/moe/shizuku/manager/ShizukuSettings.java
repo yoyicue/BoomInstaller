@@ -80,8 +80,8 @@ public class ShizukuSettings {
         return getPreferences().getInt("mode", LaunchMethod.UNKNOWN);
     }
 
-    public static void setLastLaunchMode(@LaunchMethod int method) {
-        getPreferences().edit().putInt("mode", method).apply();
+    public static boolean setLastLaunchMode(@LaunchMethod int method) {
+        return getPreferences().edit().putInt("mode", method).commit();
     }
 
     @AppCompatDelegate.NightMode

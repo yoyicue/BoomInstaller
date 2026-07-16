@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="home_installer_title">Install APK</string>
-    <string name="home_installer_description">Install an APK through an isolated system broker</string>
-    <string name="home_installer_requires_system">Start Shizuku in root or system mode first</string>
+    <string name="home_installer_description">Install an APK through the native XPad installer path</string>
+    <string name="home_installer_requires_system">Start Shizuku in root or wireless-debugging mode first</string>
     <string name="installer_title">APK installer</string>
-    <string name="installer_intro">The APK is streamed directly to Android PackageInstaller through an isolated UID 1000 broker. No temporary APK is created.</string>
+    <string name="installer_intro">The APK is copied to an auto-cleaned staging file, then installed only through managed 0044. This normally takes 10–30 seconds. If 0044 is unavailable, guarded 31317 repairs it first and the total can take up to about 60 seconds; 31317 never installs the target APK.</string>
     <string name="installer_no_file">No APK selected</string>
     <string name="installer_select_apk">Select APK</string>
     <string name="installer_install">Install</string>
@@ -16,8 +16,14 @@
     <string name="installer_selected_file_size">%1$s · %2$s</string>
     <string name="installer_apk_unreadable">The selected APK cannot be read</string>
     <string name="installer_opening_apk">Opening APK…</string>
-    <string name="installer_copying">Streaming %1$s / %2$s</string>
-    <string name="installer_copying_unknown">Streaming %1$s</string>
+    <string name="installer_checking_cli">Checking the protected xpad-install backend…</string>
+    <string name="installer_installing_managed">Installing through managed 0044; an automatic repair may take 10–60 seconds…</string>
+    <string name="installer_cli_missing">xpad-install v0.2.3 or newer is required. Run xpad2 install xpad-installer first.</string>
+    <string name="installer_reboot_required">The protected installer stopped because a core process changed. Restart the tablet normally before trying again. Diagnostic log: %1$s</string>
+    <string name="installer_cli_failed">xpad-install failed (exit %1$d). Diagnostic log: %2$s%3$s</string>
+    <string name="installer_verification_failed">Android did not report the expected installed package after xpad-install completed. Diagnostic log: %1$s</string>
+    <string name="installer_copying">Staging %1$s / %2$s</string>
+    <string name="installer_copying_unknown">Staging %1$s</string>
     <string name="installer_waiting_confirmation">Waiting for system confirmation…</string>
     <string name="installer_success">Installation completed</string>
     <string name="installer_success_package">Installed %1$s</string>

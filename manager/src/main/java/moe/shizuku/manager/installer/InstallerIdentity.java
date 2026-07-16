@@ -1,20 +1,19 @@
 package moe.shizuku.manager.installer;
 
-import android.os.Process;
-
-/** Identities that can host BoomInstaller's privileged PackageInstaller service. */
+/** Identities that can host BoomInstaller's managed xpad-install broker. */
 public final class InstallerIdentity {
 
     private static final int ROOT_UID = 0;
+    private static final int SHELL_UID = 2000;
 
     /** Whether this BoomInstaller server can provide the APK installer feature. */
     public static boolean canHostInstaller(int uid) {
-        return uid == ROOT_UID || uid == Process.SYSTEM_UID;
+        return uid == ROOT_UID || uid == SHELL_UID;
     }
 
-    /** The isolated installer broker itself must call PackageInstaller as system. */
+    /** The isolated broker must invoke the guarded xpad-install control plane as ADB shell. */
     public static boolean isInstallerServiceUid(int uid) {
-        return uid == Process.SYSTEM_UID;
+        return uid == SHELL_UID;
     }
 
     private InstallerIdentity() {

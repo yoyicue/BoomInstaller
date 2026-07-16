@@ -21,7 +21,7 @@ find_package(boringssl REQUIRED CONFIG)
 find_package(cxx REQUIRED CONFIG)
 
 add_executable(libshizuku.so
-        starter.cpp xpad_activation.cpp misc.cpp selinux.cpp cgroup.cpp)
+        starter.cpp misc.cpp selinux.cpp cgroup.cpp)
 
 target_link_libraries(libshizuku.so log cxx::cxx)
 

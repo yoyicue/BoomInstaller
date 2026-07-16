@@ -77,6 +77,37 @@ require_text manager/src/main/java/moe/shizuku/manager/home/InstallerViewHolder.
 require_text manager/src/main/java/moe/shizuku/manager/home/HomeActivity.kt \
   'https://github.com/yoyicue/BoomInstaller'
 
+# Service activation is standard Shizuku root/ADB-shell. Installer identities
+# are owned exclusively by the companion xpad-install data plane.
+reject_text manager/src/main/jni/CMakeLists.txt xpad_activation.cpp
+reject_text manager/src/main/jni/starter.cpp xpad::activate
+[ ! -e manager/src/main/jni/xpad_activation.cpp ] || \
+  fail "BoomInstaller must not embed a private 31317 implementation"
+[ ! -e manager/src/main/jni/xpad_activation.h ] || \
+  fail "BoomInstaller must not expose installer identity activation in its starter"
+if grep -R -Eq '31317|hidden_api_blacklist_exemptions|--setuid=1000' \
+  manager/src/main/java manager/src/main/jni; then
+  fail "BoomInstaller runtime source must not contain an installer exploit path"
+fi
+require_text manager/src/main/java/moe/shizuku/manager/receiver/BootCompleteReceiver.kt \
+  'setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)'
+require_text manager/src/main/java/moe/shizuku/manager/receiver/BootStarterJobService.kt \
+  'Shizuku.getUid() == 0 || Shizuku.getUid() == android.os.Process.SHELL_UID'
+require_text manager/src/main/java/moe/shizuku/manager/receiver/BootStarterJobService.kt \
+  'awaitServer(android.os.Process.SHELL_UID, SERVER_VERIFY_MILLIS)'
+require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
+  'REQUIRED_XPAD_INSTALL_VERSION = "0.2.3"'
+require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
+  'XPAD_INSTALL, "install", "--backend", "auto"'
+reject_text manager/src/main/java/moe/shizuku/manager/installer/InstallerIdentity.java \
+  Process.SYSTEM_UID
+[ ! -e manager/src/main/java/moe/shizuku/manager/installer/PackageInstallerFactory.java ] || \
+  fail "BoomInstaller must not retain a parallel UID 1000 PackageInstaller backend"
+[ ! -e manager/src/main/java/moe/shizuku/manager/installer/IntentSenderFactory.java ] || \
+  fail "BoomInstaller must route all APK commits through xpad-install"
+require_text server/src/main/java/rikka/shizuku/server/ShizukuUserServiceManager.java \
+  'Starting BoomInstaller APK broker as shell for managed 0044 installation'
+
 require_text server/src/main/java/rikka/shizuku/server/ShizukuConfig.java \
   '@SerializedName("manager")'
 require_text server/src/main/java/rikka/shizuku/server/ShizukuConfigManager.java \

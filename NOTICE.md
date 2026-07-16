@@ -13,9 +13,9 @@ in source files are retained.
 Material modifications in this fork include:
 
 - the BoomInstaller application identity and branding;
-- XPad-specific UID 10072, UID 0, and UID 1000 activation paths;
-- self-contained native activation and ordinary-boot persistence;
-- an XPad system-identity APK installation service;
+- root/local-ADB Shizuku activation with verified ordinary-boot persistence;
+- separation of Shizuku control-plane identity from the XPad installer identities;
+- an XPad 0044-first APK installation front end for the separate `xpad-install` CLI;
 - protected production signing and release verification tooling.
 
 The canonical source repository is
