@@ -147,6 +147,8 @@ output_badging=$("$AAPT2_BIN" dump badging "$OUTPUT")
   die signed-package-mismatch
 "$ROOT/tools/verify_embedded_xpad_installer.sh" "$OUTPUT" >/dev/null ||
   die embedded-xpad-installer
+"$ROOT/tools/verify_apk_permission_boundary.sh" "$OUTPUT" >/dev/null ||
+  die apk-permission-boundary
 
 unset BOOM_RELEASE_STORE_PASSWORD BOOM_RELEASE_KEY_PASSWORD
 printf 'BOOM_RELEASE_SIGN_OK input_sha256=%s output_sha256=%s cert_sha256=%s output=%s\n' \

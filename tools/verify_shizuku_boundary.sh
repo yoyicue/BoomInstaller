@@ -23,25 +23,33 @@ reject_text() {
   fi
 }
 
-STANDARD_API_PERMISSION=moe.shizuku.manager.permission.API_V23
-STANDARD_MANAGER_PERMISSION=moe.shizuku.manager.permission.MANAGER
 BOOM_PACKAGE=com.yoyicue.boominstaller
+BOOM_API_PERMISSION=$BOOM_PACKAGE.permission.API_V23
+BOOM_MANAGER_PERMISSION=$BOOM_PACKAGE.permission.MANAGER
+BOOM_PERMISSION_GROUP=$BOOM_PACKAGE.permission-group.API
+STANDARD_API_PERMISSION=moe.shizuku.manager.permission.API_V23
 
-require_text manager/src/main/AndroidManifest.xml "android:name=\"$STANDARD_API_PERMISSION\""
-require_text manager/src/main/AndroidManifest.xml "android:name=\"$STANDARD_MANAGER_PERMISSION\""
-require_text manager/src/main/java/moe/shizuku/manager/Manifest.java "$STANDARD_API_PERMISSION"
-require_text server/src/main/java/rikka/shizuku/server/BinderSender.java "$STANDARD_API_PERMISSION"
-require_text server/src/main/java/rikka/shizuku/server/BinderSender.java "$STANDARD_MANAGER_PERMISSION"
-require_text server/src/main/java/rikka/shizuku/server/ServerConstants.java "$STANDARD_API_PERMISSION"
+# Android permission declarations live in a global package namespace. Boom must
+# own only Boom-prefixed permissions so the official Shizuku manager can remain
+# installed. This does not rename upstream Java packages, AIDL, Binder
+# descriptors, intent transaction keys, rish, or provider implementation.
+require_text manager/src/main/AndroidManifest.xml "android:name=\"$BOOM_PERMISSION_GROUP\""
+require_text manager/src/main/AndroidManifest.xml "android:name=\"$BOOM_API_PERMISSION\""
+require_text manager/src/main/AndroidManifest.xml "android:name=\"$BOOM_MANAGER_PERMISSION\""
+require_text manager/src/main/java/moe/shizuku/manager/Manifest.java "$BOOM_API_PERMISSION"
+require_text server/src/main/java/rikka/shizuku/server/BinderSender.java "$BOOM_API_PERMISSION"
+require_text server/src/main/java/rikka/shizuku/server/BinderSender.java "$BOOM_MANAGER_PERMISSION"
+require_text server/src/main/java/rikka/shizuku/server/ServerConstants.java "$BOOM_API_PERMISSION"
 require_text api/provider/src/main/java/rikka/shizuku/ShizukuProvider.java "$STANDARD_API_PERMISSION"
 
-if grep -R -Fq "com.yoyicue.boominstaller.permission" \
-  manager/src/main/AndroidManifest.xml \
-  manager/src/main/java/moe/shizuku/manager/Manifest.java \
-  server/src/main/java/rikka/shizuku/server/BinderSender.java \
-  server/src/main/java/rikka/shizuku/server/ServerConstants.java; then
-  fail "Shizuku protocol permissions must not use the BoomInstaller namespace"
-fi
+reject_text manager/src/main/AndroidManifest.xml \
+  'moe.shizuku.manager.permission-group.API'
+reject_text manager/src/main/AndroidManifest.xml \
+  'moe.shizuku.manager.permission.MANAGER'
+standard_api_count=$(grep -F "$STANDARD_API_PERMISSION" \
+  manager/src/main/AndroidManifest.xml | wc -l | tr -d ' ')
+[ "$standard_api_count" = 1 ] || \
+  fail "manager manifest must only remove the provider's standard permission request"
 
 require_text api/shared/src/main/java/rikka/shizuku/ShizukuApiConstants.java \
   'BINDER_DESCRIPTOR = "moe.shizuku.server.IShizukuService"'
@@ -137,4 +145,4 @@ require_text server/src/main/java/rikka/shizuku/server/ShizukuConfigManager.java
 require_text server/src/main/java/rikka/shizuku/server/ShizukuConfigManager.java \
   'revokeRuntimePermission(pi.packageName, PERMISSION, userId)'
 
-echo "SHIZUKU_BOUNDARY_OK package=$BOOM_PACKAGE api_permission=$STANDARD_API_PERMISSION"
+echo "SHIZUKU_BOUNDARY_OK package=$BOOM_PACKAGE owned_api_permission=$BOOM_API_PERMISSION upstream_provider_permission=$STANDARD_API_PERMISSION"

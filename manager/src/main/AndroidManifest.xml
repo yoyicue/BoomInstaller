@@ -18,22 +18,22 @@
         android:required="false" />
 
     <permission-group
-        android:name="moe.shizuku.manager.permission-group.API"
+        android:name="com.yoyicue.boominstaller.permission-group.API"
         android:description="@string/permission_group_description"
-        android:icon="@drawable/ic_system_icon"
+        android:icon="@drawable/boom_launcher"
         android:label="@string/permission_group_label" />
 
     <permission
-        android:name="moe.shizuku.manager.permission.MANAGER"
+        android:name="com.yoyicue.boominstaller.permission.MANAGER"
         android:protectionLevel="signature" />
-    <uses-permission android:name="moe.shizuku.manager.permission.MANAGER" />
+    <uses-permission android:name="com.yoyicue.boominstaller.permission.MANAGER" />
 
     <permission
-        android:name="moe.shizuku.manager.permission.API_V23"
+        android:name="com.yoyicue.boominstaller.permission.API_V23"
         android:description="@string/permission_description"
-        android:icon="@drawable/ic_system_icon"
+        android:icon="@drawable/boom_launcher"
         android:label="@string/permission_label"
-        android:permissionGroup="moe.shizuku.manager.permission-group.API"
+        android:permissionGroup="com.yoyicue.boominstaller.permission-group.API"
         android:protectionLevel="dangerous" />
     <uses-permission
         android:name="moe.shizuku.manager.permission.API_V23"
@@ -143,7 +143,7 @@
             android:name=".legacy.LegacyIsNotSupportedActivity"
             android:excludeFromRecents="true"
             android:exported="true"
-            android:permission="moe.shizuku.manager.permission.API"
+            android:permission="com.yoyicue.boominstaller.permission.API"
             android:theme="@style/GrantPermissions">
             <intent-filter>
                 <action android:name="${applicationId}.intent.action.REQUEST_AUTHORIZATION" />

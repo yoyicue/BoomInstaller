@@ -25,13 +25,15 @@ install plane: BoomInstaller shell broker -> embedded xpad-install -> 0044 first
 
 The BoomInstaller product surface is intentionally small: application identity,
 launcher/about UI, the XPad activation endpoints, and the APK installer entry.
-Service status, permissions, application authorization, help, rish, Sui, Binder
-descriptor, transaction IDs, and the public
-`moe.shizuku.manager.permission.API_V23` contract retain their Shizuku identity.
-Standard applications built with Shizuku-API can therefore use the embedded
-service without recompilation. BoomInstaller is a replacement Shizuku manager
-for this device and must not be installed alongside another manager that owns
-the same standard dangerous permission.
+Service status, application authorization, help, rish, Sui, Binder descriptors,
+transaction IDs, Java packages, AIDL, and internal protocol keys retain their
+Shizuku identity. Android Manifest permission ownership is deliberately scoped
+to `com.yoyicue.boominstaller.permission.*`: permission and permission-group
+names are process-global PackageManager resources, not private Java class names.
+This lets BoomInstaller coexist with the official `moe.shizuku.privileged.api`
+package instead of trying to redeclare permissions owned by it. When both are
+installed, the official manager remains responsible for ordinary third-party
+Shizuku clients; BoomInstaller independently serves its XPad installer surface.
 
 The authorization file records which manager package last wrote it. When an
 older or differently managed file is first opened, existing client grants are
@@ -132,7 +134,10 @@ The APK is written under `manager/build/outputs/apk/debug/`.
 The build first resolves the public xpad-installer v0.2.4 Release, verifies its
 locked size/SHA-256 and embeds both the ARM64 ELF and GPLv3 license. Set
 `BOOM_XPAD_INSTALLER=/path/to/xpad-install` for an offline build; the supplied
-file must match the lock exactly.
+file must match the lock exactly. `tools/verify_apk_permission_boundary.sh`
+checks the merged APK Manifest, rejects every official Shizuku permission
+declaration, and separately confirms that upstream Shizuku application and
+Binder action identities remain present.
 
 ### Release signing
 
