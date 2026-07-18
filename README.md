@@ -8,7 +8,7 @@ Canonical project identity:
 - source repository: `https://github.com/yoyicue/BoomInstaller`;
 - Android product and APK: **BoomInstaller**;
 - embedded installation engine: [`xpad-installer`](https://github.com/yoyicue/xpad-installer)
-  v0.2.9, hash-locked inside the APK and extracted only for one broker operation;
+  v0.2.10, hash-locked inside the APK and extracted only for one broker operation;
 - integrated offline installer: [`xpad2-cli`](https://github.com/yoyicue/xpad2-cli).
 
 The former private repository name `xpad2_installer` is retired. It referred to
@@ -47,7 +47,7 @@ Shizuku control-plane source contains no installer exploit and never turns an
 0044 or UID 1000 identity into a persistent Shizuku runtime.
 
 For standalone APK installation, the BoomInstaller APK carries the exact
-`xpad-install` v0.2.9 ELF recorded in `third_party/xpad-installer.lock`. The
+`xpad-install` v0.2.10 ELF recorded in `third_party/xpad-installer.lock`. The
 UID-2000 broker verifies the embedded SHA-256, extracts it into its mode-0700
 private work directory, executes one operation, and removes it in `finally`.
 The engine derives the OEM installer UID per device, uses 0044 for every target
@@ -120,11 +120,11 @@ not collapsed into a generic local-ADB timeout.
 When the home page reports that Shizuku is running as `root` or `adb`,
 open **Install APK**, select an APK with Android's document picker, and tap
 **Install**. The Manager passes the selected file descriptor to a private shell
-broker, which extracts and verifies its embedded `xpad-install` v0.2.9, copies
+broker, which extracts and verifies its embedded `xpad-install` v0.2.10, copies
 the APK to a mode-0600 staging file, and invokes `install --backend auto`. That command repairs
 and re-verifies managed 0044 when needed, then installs every target APK only
 through 0044. Its guarded 31317 transaction is used solely to repair a missing or
-broken 0044 identity before target installation starts. Version 0.2.9 waits up to
+broken 0044 identity before target installation starts. Version 0.2.10 waits up to
 five minutes for the repaired alias to become healthy. If Android is still converging,
 exit 76 records a committed pending repair instead of reporting a normal failure.
 The staging APK and extracted engine are removed in `finally`; the latest 12 bounded operation logs are
@@ -146,7 +146,7 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
 ```
 
 The APK is written under `manager/build/outputs/apk/debug/`.
-The build first resolves the public xpad-installer v0.2.9 Release, verifies its
+The build first resolves the public xpad-installer v0.2.10 Release, verifies its
 locked size/SHA-256 and embeds both the ARM64 ELF and GPLv3 license. Set
 `BOOM_XPAD_INSTALLER=/path/to/xpad-install` for an offline build; the supplied
 file must match the lock exactly. `tools/verify_apk_permission_boundary.sh`
@@ -183,5 +183,5 @@ BoomInstaller is based on [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizu
 commit `b844bc491f1790c72328e1a8e5b2349f8978f0ea` and its pinned Shizuku-API
 submodule. BoomInstaller source remains under the Apache License 2.0; see
 [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md). The separately executed embedded
-xpad-installer v0.2.9 is GPL-3.0-only; its full license is included in the APK
+xpad-installer v0.2.10 is GPL-3.0-only; its full license is included in the APK
 and its corresponding source is the exact public tag linked above.
