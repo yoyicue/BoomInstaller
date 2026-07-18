@@ -22,7 +22,7 @@
     <string name="installer_recheck">重新检测</string>
     <string name="installer_rechecking">正在只读检测安装身份…</string>
     <string name="installer_identity_ready">安装身份已就绪，可以重新点击安装。</string>
-    <string name="installer_cli_missing">内置 xpad-install v0.2.8 未通过完整性或自检，请重新安装官方 BoomInstaller APK。</string>
+    <string name="installer_cli_missing">内置 xpad-install v0.2.9 未通过完整性或自检，请重新安装官方 BoomInstaller APK。</string>
     <string name="installer_reboot_required">核心进程发生变化，受保护的安装器已停止。请普通重启平板后再试。诊断日志：%1$s</string>
     <string name="installer_cli_failed">xpad-install 失败（退出码 %1$d）。诊断日志：%2$s%3$s</string>
     <string name="installer_verification_failed">xpad-install 完成后，Android 未报告预期的安装包。诊断日志：%1$s</string>

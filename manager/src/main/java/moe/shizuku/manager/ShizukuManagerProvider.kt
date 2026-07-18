@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.os.Binder
 import android.os.Build
 import android.os.Process
+import android.os.SystemClock
+import android.provider.Settings
 import androidx.annotation.RequiresApi
 import androidx.core.os.bundleOf
 import moe.shizuku.api.BinderContainer
@@ -66,6 +68,12 @@ class ShizukuManagerProvider : ShizukuProvider() {
                     PackageManager.DONT_KILL_APP
                 )
             }
+            BootStarterJobService.recordStatus(
+                requireNotNull(context),
+                "waiting-network-trust",
+                "waiting for stable wireless ADB and network authorization",
+                false
+            )
             return Bundle.EMPTY
         }
 
@@ -79,12 +87,29 @@ class ShizukuManagerProvider : ShizukuProvider() {
         if (method == METHOD_GET_AUTO_START_STATUS) {
             val preferences = requireNotNull(context).createDeviceProtectedStorageContext()
                 .getSharedPreferences(BootStarterJobService.STATUS_PREFERENCES, 0)
+            val keyStore = PreferenceAdbKeyStore(ShizukuSettings.getPreferences())
+            val keyPresent = keyStore.hasStoredKey()
+            val keyValid = keyPresent && runCatching {
+                AdbKey(keyStore, AUTO_START_KEY_NAME, false)
+            }.isSuccess
+            val serverUid = if (Shizuku.pingBinder()) {
+                runCatching { Shizuku.getUid() }.getOrDefault(-1)
+            } else {
+                -1
+            }
             return bundleOf(
+                "providerReady" to true,
                 "state" to preferences.getString("state", "never"),
                 "detail" to preferences.getString("detail", ""),
                 "timestamp" to preferences.getLong("timestamp", 0),
                 "mode" to ShizukuSettings.getLastLaunchMode(),
-                "serverUid" to if (Shizuku.pingBinder()) Shizuku.getUid() else -1
+                "serverUid" to serverUid,
+                "pairingKeyPresent" to keyPresent,
+                "pairingKeyValid" to keyValid,
+                "paired" to (preferences.getBoolean("paired", false) && keyValid),
+                "wirelessAdbEnabled" to (Settings.Global.getInt(
+                    requireNotNull(context).contentResolver, "adb_wifi_enabled", 0
+                ) == 1)
             )
         }
 
@@ -149,6 +174,9 @@ class ShizukuManagerProvider : ShizukuProvider() {
             PreferenceAdbKeyStore(ShizukuSettings.getPreferences()),
             AUTO_START_KEY_NAME
         )
+        BootStarterJobService.recordStatus(
+            requireNotNull(context), "pairing", "waiting for wireless ADB pairing service", false
+        )
         val claimed = AtomicBoolean(false)
         val paired = AtomicBoolean(false)
         val error = AtomicReference<Throwable?>()
@@ -176,9 +204,52 @@ class ShizukuManagerProvider : ShizukuProvider() {
             adbMdns.stop()
         }
         error.get()?.let { LOGGER.e(it, "pairAutoStart") }
-        if (paired.get() && !ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.ADB)) {
+        if (!paired.get()) {
+            val state = if (error.get() is TimeoutException) {
+                "wireless-adb-not-started"
+            } else {
+                "pairing-failed"
+            }
+            val detail = error.get()?.let {
+                it.javaClass.simpleName + ": " + (it.message ?: "no message")
+            } ?: "wireless ADB rejected the pairing request"
+            BootStarterJobService.recordStatus(requireNotNull(context), state, detail, false)
+            return bundleOf(EXTRA_PAIRED to false, "state" to state)
+        }
+        if (!ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.ADB)) {
             throw IllegalStateException("ADB pairing succeeded but auto-start mode was not persisted")
         }
-        return bundleOf(EXTRA_PAIRED to paired.get())
+        var stable = 0
+        repeat(5) {
+            if (Settings.Global.getInt(
+                    requireNotNull(context).contentResolver, "adb_wifi_enabled", 0
+                ) == 1) {
+                stable++
+            } else {
+                stable = 0
+            }
+            if (stable < 3) SystemClock.sleep(1000)
+        }
+        if (stable < 3) {
+            BootStarterJobService.recordStatus(
+                requireNotNull(context),
+                "network-untrusted",
+                "wireless ADB was disabled before pairing became stable",
+                false
+            )
+            return bundleOf(EXTRA_PAIRED to false, "state" to "network-untrusted")
+        }
+        BootStarterJobService.recordStatus(
+            requireNotNull(context),
+            "pending-reboot",
+            "paired; ordinary reboot required to verify automatic start",
+            true
+        )
+        return bundleOf(
+            EXTRA_PAIRED to true,
+            "state" to "pending-reboot",
+            "pairingKeyPresent" to true,
+            "pairingKeyValid" to true
+        )
     }
 }

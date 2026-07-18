@@ -14,3 +14,6 @@ open class AdbException : Exception {
 class AdbInvalidPairingCodeException : AdbException()
 
 class AdbKeyException(cause: Throwable) : AdbException(cause)
+
+class AdbAuthenticationException(message: String, cause: Throwable? = null) :
+    AdbException(message, cause)

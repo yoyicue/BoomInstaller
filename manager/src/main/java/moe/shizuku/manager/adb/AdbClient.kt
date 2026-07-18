@@ -22,6 +22,7 @@ import java.io.DataOutputStream
 import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLSocket
 
 private const val TAG = "AdbClient"
@@ -59,7 +60,11 @@ class AdbClient(private val host: String, private val port: Int, private val key
 
             val sslContext = key.sslContext
             tlsSocket = sslContext.socketFactory.createSocket(socket, host, port, true) as SSLSocket
-            tlsSocket.startHandshake()
+            try {
+                tlsSocket.startHandshake()
+            } catch (error: SSLException) {
+                throw AdbAuthenticationException("paired wireless ADB key was rejected", error)
+            }
             Log.d(TAG, "Handshake succeeded.")
 
             tlsInputStream = DataInputStream(tlsSocket.inputStream)
@@ -68,7 +73,9 @@ class AdbClient(private val host: String, private val port: Int, private val key
 
             message = read()
         } else if (message.command == A_AUTH) {
-            if (message.command != A_AUTH && message.arg0 != ADB_AUTH_TOKEN) error("not A_AUTH ADB_AUTH_TOKEN")
+            if (message.command != A_AUTH || message.arg0 != ADB_AUTH_TOKEN) {
+                throw AdbAuthenticationException("wireless ADB returned an invalid auth challenge")
+            }
             write(A_AUTH, ADB_AUTH_SIGNATURE, 0, key.sign(message.data))
 
             message = read()
@@ -78,7 +85,9 @@ class AdbClient(private val host: String, private val port: Int, private val key
             }
         }
 
-        if (message.command != A_CNXN) error("not A_CNXN")
+        if (message.command != A_CNXN) {
+            throw AdbAuthenticationException("wireless ADB did not accept the paired key")
+        }
     }
 
     fun shellCommand(command: String, listener: ((ByteArray) -> Unit)?) {

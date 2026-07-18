@@ -37,7 +37,11 @@ import javax.net.ssl.X509ExtendedTrustManager
 
 private const val TAG = "AdbKey"
 
-class AdbKey(private val adbKeyStore: AdbKeyStore, name: String) {
+class AdbKey(
+    private val adbKeyStore: AdbKeyStore,
+    name: String,
+    private val createIfMissing: Boolean = true
+) {
 
     companion object {
 
@@ -106,6 +110,9 @@ class AdbKey(private val adbKeyStore: AdbKeyStore, name: String) {
         keyStore.load(null)
 
         return keyStore.getKey(ENCRYPTION_KEY_ALIAS, null) ?: run {
+            if (!createIfMissing) {
+                throw AdbKeyException(GeneralSecurityException("ADB encryption key is missing"))
+            }
             val parameterSpec = KeyGenParameterSpec.Builder(ENCRYPTION_KEY_ALIAS, KeyProperties.PURPOSE_DECRYPT or KeyProperties.PURPOSE_ENCRYPT)
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                     .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
@@ -147,17 +154,27 @@ class AdbKey(private val adbKeyStore: AdbKeyStore, name: String) {
         val aad = ByteArray(16)
         "adbkey".toByteArray().copyInto(aad)
 
-        var ciphertext = adbKeyStore.get()
+        var ciphertext = try {
+            adbKeyStore.get()
+        } catch (error: Throwable) {
+            if (!createIfMissing) throw AdbKeyException(error)
+            null
+        }
         if (ciphertext != null) {
             try {
                 val plaintext = decrypt(ciphertext, aad)
+                    ?: throw GeneralSecurityException("Stored ADB key is not decryptable")
 
                 val keyFactory = KeyFactory.getInstance("RSA")
                 privateKey = keyFactory.generatePrivate(PKCS8EncodedKeySpec(plaintext)) as RSAPrivateKey
             } catch (e: Exception) {
+                if (!createIfMissing) throw AdbKeyException(e)
             }
         }
         if (privateKey == null) {
+            if (!createIfMissing) {
+                throw AdbKeyException(GeneralSecurityException("Stored ADB key is missing"))
+            }
             val keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA)
             keyPairGenerator.initialize(RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
             val keyPair = keyPairGenerator.generateKeyPair()
@@ -266,6 +283,13 @@ interface AdbKeyStore {
 class PreferenceAdbKeyStore(private val preference: SharedPreferences) : AdbKeyStore {
 
     private val preferenceKey = "adbkey"
+
+    fun hasStoredKey(): Boolean = try {
+        preference.contains(preferenceKey)
+            && !preference.getString(preferenceKey, null).isNullOrEmpty()
+    } catch (_: Throwable) {
+        false
+    }
 
     override fun put(bytes: ByteArray) {
         check(preference.edit()

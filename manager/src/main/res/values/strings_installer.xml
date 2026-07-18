@@ -22,7 +22,7 @@
     <string name="installer_recheck">Recheck</string>
     <string name="installer_rechecking">Checking installer identity (read-only)…</string>
     <string name="installer_identity_ready">Installer identity is ready. You can tap Install again.</string>
-    <string name="installer_cli_missing">The embedded xpad-install v0.2.8 engine failed integrity or self-test checks. Reinstall the official BoomInstaller APK.</string>
+    <string name="installer_cli_missing">The embedded xpad-install v0.2.9 engine failed integrity or self-test checks. Reinstall the official BoomInstaller APK.</string>
     <string name="installer_reboot_required">The protected installer stopped because a core process changed. Restart the tablet normally before trying again. Diagnostic log: %1$s</string>
     <string name="installer_cli_failed">xpad-install failed (exit %1$d). Diagnostic log: %2$s%3$s</string>
     <string name="installer_verification_failed">Android did not report the expected installed package after xpad-install completed. Diagnostic log: %1$s</string>
