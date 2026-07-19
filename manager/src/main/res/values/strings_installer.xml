@@ -2,7 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="home_installer_title">Install APK</string>
     <string name="home_installer_description">Install an APK through the native XPad installer path</string>
-    <string name="home_installer_requires_system">Start Shizuku in root or wireless-debugging mode first</string>
+    <string name="home_installer_requires_system">Open to start the service with Root, or use wireless debugging</string>
     <string name="installer_title">APK installer</string>
     <string name="installer_intro">BoomInstaller contains its own verified installation engine and installs only through managed 0044. After an identity repair is committed it polls read-only for up to about 5 minutes; 31317 never installs the target APK.</string>
     <string name="installer_no_file">No APK selected</string>
@@ -12,7 +12,16 @@
     <string name="installer_service_ready">Installer service ready (UID %1$d)</string>
     <string name="installer_service_wrong_uid">Installer service has unsupported UID %1$d</string>
     <string name="installer_service_disconnected">Installer service disconnected</string>
-    <string name="installer_boom_service_required">Start the Shizuku service before installing an APK</string>
+    <string name="installer_boom_service_required">BoomInstaller service is not running; attempting Root startup…</string>
+    <string name="installer_start_root_service">Start Root service</string>
+    <string name="installer_root_starting">Requesting root and starting BoomInstaller service…</string>
+    <string name="installer_root_started">Root service started; connecting to installer service…</string>
+    <string name="installer_root_unavailable">Root permission was denied or the root manager is not ready. Grant BoomInstaller in Magisk, KernelSU, or SukiSU Ultra, then try again.</string>
+    <string name="installer_root_selinux_denied">Root is granted, but the current SU/SELinux policy blocks the Binder connection. Use wireless debugging instead.</string>
+    <string name="installer_root_timeout">Root was granted, but the BoomInstaller service did not connect within 10 seconds. Try again or use wireless debugging.</string>
+    <string name="installer_root_wrong_uid">A Shizuku service connected with the wrong runtime identity: %1$s</string>
+    <string name="installer_root_cancelled">Root service startup was cancelled</string>
+    <string name="installer_root_failed">Root service startup failed: %1$s</string>
     <string name="installer_selected_file_size">%1$s · %2$s</string>
     <string name="installer_apk_unreadable">The selected APK cannot be read</string>
     <string name="installer_opening_apk">Opening APK…</string>

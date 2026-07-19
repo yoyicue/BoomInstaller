@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
-import com.topjohnwu.superuser.Shell
 import moe.shizuku.manager.AppConstants
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.ShizukuSettings.LaunchMethod
@@ -18,6 +17,7 @@ import moe.shizuku.manager.adb.AdbAuthenticationException
 import moe.shizuku.manager.adb.AdbKey
 import moe.shizuku.manager.adb.AdbMdns
 import moe.shizuku.manager.adb.PreferenceAdbKeyStore
+import moe.shizuku.manager.starter.RootServiceController
 import moe.shizuku.manager.starter.Starter
 import moe.shizuku.manager.utils.UserHandleCompat
 import rikka.shizuku.Shizuku
@@ -61,6 +61,7 @@ class BootStarterJobService : JobService() {
             return true
         }
         if (acceptedServerIsRunning()) {
+            resetRootAttempts()
             record("already-running", "uid=${Shizuku.getUid()}")
             return true
         }
@@ -74,20 +75,32 @@ class BootStarterJobService : JobService() {
         }
 
         if (mode == LaunchMethod.ROOT) {
-            val rootDeadline = SystemClock.elapsedRealtime() + ROOT_WAIT_MILLIS
-            do {
-                if (cancelled.get()) return false
-                if (rootStart()) {
-                    record("started", "root")
-                    return true
-                }
-                SystemClock.sleep(ROOT_RETRY_MILLIS)
-            } while (SystemClock.elapsedRealtime() < rootDeadline)
-            if (!canStartViaAdb) {
-                record("failed", "root unavailable and local ADB not provisioned")
-                return false
+            val attempt = nextRootAttempt()
+            val rootResult = RootServiceController.start(
+                timeoutMillis = SERVER_VERIFY_MILLIS,
+                cancelled = { cancelled.get() }
+            )
+            if (rootResult.succeeded) {
+                resetRootAttempts()
+                record("started", "root Binder verified on attempt $attempt")
+                return true
             }
-            record("fallback", "root unavailable; trying local ADB shell")
+            if (!canStartViaAdb) {
+                val detail = "attempt $attempt/$ROOT_MAX_ATTEMPTS: " +
+                    "${rootResult.diagnosticDetail()}; " +
+                    "local ADB not provisioned"
+                if (rootResult.retryable && attempt < ROOT_MAX_ATTEMPTS) {
+                    record("retrying-${rootResult.statusName}", detail)
+                    return false
+                }
+                record(rootResult.statusName, detail)
+                return true
+            }
+            record(
+                "fallback",
+                "${rootResult.statusName}: ${rootResult.diagnosticDetail()}; " +
+                    "trying local ADB shell"
+            )
         }
 
         if (!canStartViaAdb) {
@@ -97,21 +110,6 @@ class BootStarterJobService : JobService() {
         val result = adbStart()
         record(result.state, result.detail, result.paired)
         return result.started
-    }
-
-    private fun rootStart(): Boolean {
-        return try {
-            if (!Shell.getShell().isRoot) {
-                Shell.getCachedShell()?.close()
-                return false
-            }
-            val result = Shell.cmd(Starter.internalCommand).exec()
-            result.code == 0 && awaitServer(0, SERVER_VERIFY_MILLIS)
-        } catch (error: Throwable) {
-            Shell.getCachedShell()?.close()
-            Log.w(AppConstants.TAG, "Root boot start attempt failed", error)
-            false
-        }
     }
 
     private data class AdbStartResult(
@@ -273,23 +271,56 @@ class BootStarterJobService : JobService() {
         recordStatus(this, state, detail, paired)
     }
 
+    private fun nextRootAttempt(): Int {
+        val preferences = statusPreferences(this)
+        val next = preferences.getInt(KEY_ROOT_ATTEMPT, 0) + 1
+        preferences.edit().putInt(KEY_ROOT_ATTEMPT, next).commit()
+        return next
+    }
+
+    private fun resetRootAttempts() {
+        statusPreferences(this).edit().putInt(KEY_ROOT_ATTEMPT, 0).commit()
+    }
+
     companion object {
         const val JOB_ID = 0x424f4f4d
         const val STATUS_PREFERENCES = "boom_autostart_status"
         private const val WIRELESS_SETTINGS_SAMPLES = 5
         private const val WIRELESS_SETTINGS_STABLE_SAMPLES = 3
         private const val WIRELESS_SETTINGS_POLL_MILLIS = 1_000L
-        private const val ROOT_WAIT_MILLIS = 20_000L
-        private const val ROOT_RETRY_MILLIS = 2_000L
+        const val ROOT_RETRY_INITIAL_MILLIS = 15_000L
+        private const val ROOT_MAX_ATTEMPTS = 5
         private const val ADB_WAIT_MILLIS = 60_000L
         private const val MDNS_POLL_MILLIS = 5_000L
         private const val SERVER_VERIFY_MILLIS = 10_000L
         private const val MAX_START_OUTPUT = 8_192
+        private const val KEY_BOOT_ID = "root_attempt_boot_id"
+        private const val KEY_ROOT_ATTEMPT = "root_attempt"
+        private const val KEY_UNLOCKED_PHASE = "root_attempt_unlocked_phase"
+
+        private fun statusPreferences(context: Context) =
+            context.createDeviceProtectedStorageContext()
+                .getSharedPreferences(STATUS_PREFERENCES, Context.MODE_PRIVATE)
+
+        fun prepareForBoot(context: Context, credentialUnlocked: Boolean) {
+            val bootId = runCatching {
+                java.io.File("/proc/sys/kernel/random/boot_id").readText().trim()
+            }.getOrDefault("")
+            val preferences = statusPreferences(context)
+            val newBoot = bootId.isNotEmpty() && preferences.getString(KEY_BOOT_ID, null) != bootId
+            val enteredUnlockedPhase = credentialUnlocked &&
+                !preferences.getBoolean(KEY_UNLOCKED_PHASE, false)
+            if (newBoot || enteredUnlockedPhase) {
+                val editor = preferences.edit().putInt(KEY_ROOT_ATTEMPT, 0)
+                if (bootId.isNotEmpty()) editor.putString(KEY_BOOT_ID, bootId)
+                editor.putBoolean(KEY_UNLOCKED_PHASE, credentialUnlocked)
+                editor.commit()
+            }
+        }
 
         fun recordStatus(context: Context, state: String, detail: String, paired: Boolean? = null) {
             val safeDetail = detail.replace('\n', ' ').replace('\r', ' ').take(1600)
-            val preferences = context.createDeviceProtectedStorageContext()
-                .getSharedPreferences(STATUS_PREFERENCES, Context.MODE_PRIVATE)
+            val preferences = statusPreferences(context)
             val editor = preferences.edit()
                 .putString("state", state)
                 .putString("detail", safeDetail)

@@ -20,8 +20,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.shizuku.manager.BuildConfig
 import moe.shizuku.manager.R
+import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.databinding.InstallerActivityBinding
+import moe.shizuku.manager.receiver.BootStarterJobService
+import moe.shizuku.manager.starter.RootServiceController
 import rikka.shizuku.Shizuku
 import java.text.NumberFormat
 
@@ -35,6 +38,7 @@ class InstallerActivity : AppBarActivity() {
     private var serviceBound = false
     private var installing = false
     private var repairPending = false
+    private var rootStarting = false
 
     private val userServiceArgs by lazy {
         Shizuku.UserServiceArgs(
@@ -88,7 +92,12 @@ class InstallerActivity : AppBarActivity() {
         }
     }
 
-    private val binderReceivedListener = Shizuku.OnBinderReceivedListener { bindInstallerService() }
+    private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
+        if (runCatching { Shizuku.getUid() }.getOrDefault(-1) == 0) {
+            ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.ROOT)
+        }
+        bindInstallerService()
+    }
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
         service = null
         runOnUiThread {
@@ -182,13 +191,15 @@ class InstallerActivity : AppBarActivity() {
         }
         binding.installButton.setOnClickListener { installSelected() }
         binding.recheckButton.setOnClickListener { recheckInstallerIdentity() }
+        binding.startServiceButton.setOnClickListener { startRootService() }
 
         Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
         Shizuku.addBinderDeadListener(binderDeadListener)
 
         intent?.data?.let(::selectUri)
-        if (!Shizuku.pingBinder()) {
+        if (!hasUsableControlService()) {
             binding.status.setText(R.string.installer_boom_service_required)
+            binding.root.post { startRootService() }
         }
         updateActions()
     }
@@ -223,6 +234,55 @@ class InstallerActivity : AppBarActivity() {
                 serviceBound = false
                 showError(it)
             }
+        }
+    }
+
+    private fun startRootService() {
+        if (rootStarting || hasUsableControlService()) return
+        rootStarting = true
+        binding.progress.visibility = View.VISIBLE
+        binding.progress.isIndeterminate = true
+        binding.status.setText(R.string.installer_root_starting)
+        updateActions()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = RootServiceController.start(
+                restartRunningServer = Shizuku.pingBinder(),
+                cancelled = { isFinishing || isDestroyed }
+            )
+            BootStarterJobService.recordStatus(
+                this@InstallerActivity,
+                result.statusName,
+                "manual installer start: ${result.diagnosticDetail()}"
+            )
+            withContext(Dispatchers.Main) {
+                rootStarting = false
+                if (!installing) binding.progress.visibility = View.GONE
+                if (result.succeeded) {
+                    ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.ROOT)
+                    binding.status.setText(R.string.installer_root_started)
+                    bindInstallerService()
+                } else {
+                    binding.status.text = rootFailureMessage(result)
+                }
+                updateActions()
+            }
+        }
+    }
+
+    private fun rootFailureMessage(result: RootServiceController.Result): String {
+        return when (result.state) {
+            RootServiceController.State.ROOT_UNAVAILABLE ->
+                getString(R.string.installer_root_unavailable)
+            RootServiceController.State.SELINUX_BINDER_DENIED ->
+                getString(R.string.installer_root_selinux_denied)
+            RootServiceController.State.SERVER_TIMEOUT ->
+                getString(R.string.installer_root_timeout)
+            RootServiceController.State.WRONG_RUNTIME_UID ->
+                getString(R.string.installer_root_wrong_uid, result.detail)
+            RootServiceController.State.CANCELLED ->
+                getString(R.string.installer_root_cancelled)
+            else -> getString(R.string.installer_root_failed, result.detail)
         }
     }
 
@@ -303,6 +363,14 @@ class InstallerActivity : AppBarActivity() {
         binding.selectButton.isEnabled = !installing
         binding.installButton.isEnabled = !installing && !repairPending && selection != null && service != null
         binding.recheckButton.isEnabled = !installing && service != null
+        binding.startServiceButton.visibility = if (hasUsableControlService()) View.GONE else View.VISIBLE
+        binding.startServiceButton.isEnabled = !installing && !rootStarting
+    }
+
+    private fun hasUsableControlService(): Boolean {
+        if (!Shizuku.pingBinder()) return false
+        val uid = runCatching { Shizuku.getUid() }.getOrDefault(-1)
+        return InstallerIdentity.canHostInstaller(uid)
     }
 
     private fun recheckInstallerIdentity() {

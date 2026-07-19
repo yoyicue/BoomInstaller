@@ -29,7 +29,9 @@ class InstallerViewHolder(private val binding: HomeInstallerBinding, root: View)
 
     override fun onBind() {
         val ready = data.isRunning && InstallerIdentity.canHostInstaller(data.uid)
-        itemView.isEnabled = ready
+        // The installer owns the root-service bootstrap transaction, so it must remain reachable
+        // when Magisk/SU is granted but the BoomInstaller Binder is not running yet.
+        itemView.isEnabled = true
         binding.text2.text = itemView.context.getString(
             if (ready) R.string.home_installer_description
             else R.string.home_installer_requires_system

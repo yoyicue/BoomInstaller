@@ -21,12 +21,20 @@ class BootCompleteReceiver : BroadcastReceiver() {
 
         val scheduler = context.getSystemService(JobScheduler::class.java)
         ShizukuSettings.initialize(context)
+        BootStarterJobService.prepareForBoot(
+            context,
+            intent.action == Intent.ACTION_BOOT_COMPLETED
+        )
         val builder = JobInfo.Builder(
             BootStarterJobService.JOB_ID,
             ComponentName(context, BootStarterJobService::class.java)
         )
             .setMinimumLatency(3_000)
             .setOverrideDeadline(60_000)
+            .setBackoffCriteria(
+                BootStarterJobService.ROOT_RETRY_INITIAL_MILLIS,
+                JobInfo.BACKOFF_POLICY_EXPONENTIAL
+            )
         if (ShizukuSettings.getLastLaunchMode() == ShizukuSettings.LaunchMethod.ADB) {
             builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
         }

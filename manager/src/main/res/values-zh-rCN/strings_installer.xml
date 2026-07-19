@@ -2,7 +2,7 @@
 <resources>
     <string name="home_installer_title">安装 APK</string>
     <string name="home_installer_description">通过学而思原生安装通道安装 APK</string>
-    <string name="home_installer_requires_system">请先以 Root 或无线调试模式启动 Shizuku</string>
+    <string name="home_installer_requires_system">打开后可用 Root 自动启动服务，也可使用无线调试</string>
     <string name="installer_title">APK 安装器</string>
     <string name="installer_intro">BoomInstaller 自带并校验安装引擎。APK 只通过受管 0044 安装。若安装身份需要修复，提交后会只读检测最多约 5 分钟；31317 不会安装目标 APK。</string>
     <string name="installer_no_file">尚未选择 APK</string>
@@ -12,7 +12,16 @@
     <string name="installer_service_ready">安装服务已就绪（UID %1$d）</string>
     <string name="installer_service_wrong_uid">安装服务 UID %1$d 不受支持</string>
     <string name="installer_service_disconnected">安装服务连接已断开</string>
-    <string name="installer_boom_service_required">安装 APK 前请先启动 Shizuku 服务</string>
+    <string name="installer_boom_service_required">BoomInstaller 服务未运行，正在尝试 Root 启动…</string>
+    <string name="installer_start_root_service">启动 Root 服务</string>
+    <string name="installer_root_starting">正在请求 Root 并启动 BoomInstaller 服务…</string>
+    <string name="installer_root_started">Root 服务已启动，正在连接安装服务…</string>
+    <string name="installer_root_unavailable">Root 未授权，或 Root 后台尚未就绪。请在 Magisk、KernelSU 或 SukiSU Ultra 中授权 BoomInstaller 后重试。</string>
+    <string name="installer_root_selinux_denied">Root 已授权，但当前 SU/SELinux 策略阻止 Binder 连接，请改用无线调试。</string>
+    <string name="installer_root_timeout">Root 已授权，但 BoomInstaller 服务在 10 秒内没有连接。请重试或改用无线调试。</string>
+    <string name="installer_root_wrong_uid">Shizuku 服务以错误的运行身份连接：%1$s</string>
+    <string name="installer_root_cancelled">Root 服务启动已取消</string>
+    <string name="installer_root_failed">Root 服务启动失败：%1$s</string>
     <string name="installer_selected_file_size">%1$s · %2$s</string>
     <string name="installer_apk_unreadable">无法读取所选 APK</string>
     <string name="installer_opening_apk">正在打开 APK…</string>

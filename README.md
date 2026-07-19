@@ -59,9 +59,20 @@ No external `/data/local/tmp/xpad-install` or xpad2 installation is required.
 Install and open the APK, then start its Shizuku service using either standard
 in-app method:
 
-- on an already rooted device, tap the Root start entry;
+- on an already rooted device, grant BoomInstaller in Magisk, KernelSU, or
+  SukiSU Ultra and tap the Root start entry;
 - otherwise, use the Wireless debugging entry to pair and start through local
   ADB shell.
+
+Magisk/KernelSU/SukiSU Ultra authorization and a running Shizuku Binder are
+separate states. When
+the standalone APK installer is opened without a Binder, BoomInstaller now uses
+the granted root shell to start its own embedded server automatically, waits for
+an actual Binder with UID 0, and only then enables installation. A native starter
+exit code by itself is never considered success. The installer keeps an explicit
+**Start Root service** retry action and distinguishes unavailable root, a
+SU/SELinux Binder denial, an unexpected runtime UID, and a service-start timeout.
+It does not require or start the official Shizuku package.
 
 BoomInstaller stores the standard in-app `shizuku` pairing identity in
 device-protected storage. Its boot job reuses that identity. The underlying
@@ -90,13 +101,16 @@ for a valid wireless-ADB TLS port to remain stable before opening Android's QR
 pairing server. A successful exchange is persisted as `paired` with
 `pending-reboot`; a timeout or framework rollback is a nonzero failure.
 
-On later ordinary boots, `BootCompleteReceiver` schedules a network-constrained
-job instead of running inside the short boot-broadcast window. The job waits up
-to 20 seconds for a configured root service, then (when needed) spends up to 60
-seconds discovering the random TLS port, authenticating with the paired key, and
-starting the installed `libshizuku.so` as ADB shell. It accepts success only after
-the Binder arrives with UID 0 or 2000. No computer, installer exploit, copied DEX,
-or external `/data/local/tmp` file is used by that boot path. Pair again only after
+On later ordinary boots, `BootCompleteReceiver` schedules a job instead of
+running inside the short boot-broadcast window. Root mode is retried with
+JobScheduler exponential backoff (15/30/60/120 seconds, at most five attempts
+after boot and another bounded window after credential unlock),
+so a Magisk daemon that becomes ready later in boot does not leave a false
+failure. When needed, the job spends up to 60 seconds discovering the random TLS
+port, authenticating with the paired key, and starting the installed
+`libshizuku.so` as ADB shell. It accepts success only after the Binder arrives
+with UID 0 or 2000. No computer, installer exploit, copied DEX, or external
+`/data/local/tmp` file is used by that boot path. Pair again only after
 uninstalling BoomInstaller, clearing its app data, revoking the paired device, or
 manually disabling the required wireless-debugging settings.
 

@@ -1,15 +1,12 @@
 package moe.shizuku.manager.starter
 
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.topjohnwu.superuser.CallbackList
-import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import moe.shizuku.manager.AppConstants.EXTRA
 import moe.shizuku.manager.R
@@ -27,13 +24,10 @@ import rikka.shizuku.Shizuku
 import java.net.ConnectException
 import javax.net.ssl.SSLProtocolException
 
-private class NotRootedException : Exception()
-
 class StarterActivity : AppBarActivity() {
 
     private val viewModel by viewModels {
         ViewModel(
-            this,
             intent.getBooleanExtra(EXTRA_IS_ROOT, true),
             intent.getStringExtra(EXTRA_HOST),
             intent.getIntExtra(EXTRA_PORT, 0)
@@ -51,7 +45,7 @@ class StarterActivity : AppBarActivity() {
 
         viewModel.output.observe(this) {
             val output = it.data!!.trim()
-            if (output.endsWith("info: shizuku_starter exit with 0")) {
+            if (!viewModel.root && output.endsWith("info: shizuku_starter exit with 0")) {
                 viewModel.appendOutput("")
                 viewModel.appendOutput("Waiting for service...")
 
@@ -71,9 +65,6 @@ class StarterActivity : AppBarActivity() {
                     is AdbKeyException -> {
                         message = R.string.adb_error_key_store
                     }
-                    is NotRootedException -> {
-                        message = R.string.start_with_root_failed
-                    }
                     is ConnectException -> {
                         message = R.string.cannot_connect_port
                     }
@@ -91,6 +82,29 @@ class StarterActivity : AppBarActivity() {
             }
             binding.text1.text = output
         }
+
+        viewModel.rootResult.observe(this) { result ->
+            if (result.succeeded) {
+                ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.ROOT)
+                viewModel.appendOutput("")
+                viewModel.appendOutput("Root service started. This window will close in 3 seconds.")
+                window?.decorView?.postDelayed({
+                    if (!isFinishing) finish()
+                }, 3000)
+                return@observe
+            }
+
+            val message = when (result.state) {
+                RootServiceController.State.ROOT_UNAVAILABLE -> R.string.start_with_root_failed
+                RootServiceController.State.SELINUX_BINDER_DENIED -> R.string.start_with_root_selinux_denied
+                RootServiceController.State.SERVER_TIMEOUT -> R.string.start_with_root_timeout
+                else -> R.string.start_with_root_starter_failed
+            }
+            MaterialAlertDialogBuilder(this)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+        }
     }
 
     companion object {
@@ -101,12 +115,14 @@ class StarterActivity : AppBarActivity() {
     }
 }
 
-private class ViewModel(context: Context, root: Boolean, host: String?, port: Int) : androidx.lifecycle.ViewModel() {
+private class ViewModel(val root: Boolean, host: String?, port: Int) : androidx.lifecycle.ViewModel() {
 
     private val sb = StringBuilder()
     private val _output = MutableLiveData<Resource<StringBuilder>>()
+    private val _rootResult = MutableLiveData<RootServiceController.Result>()
 
     val output = _output as LiveData<Resource<StringBuilder>>
+    val rootResult = _rootResult as LiveData<RootServiceController.Result>
 
     init {
         try {
@@ -136,30 +152,19 @@ private class ViewModel(context: Context, root: Boolean, host: String?, port: In
         sb.append("Starting with root...").append('\n').append('\n')
         postResult()
 
-        GlobalScope.launch(Dispatchers.IO) {
-            if (!Shell.getShell().isRoot) {
-                Shell.getCachedShell()?.close()
-                sb.append('\n').append("Can't open root shell, try again...").append('\n')
-
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = RootServiceController.start(
+                restartRunningServer = true,
+                onOutput = { line ->
+                    sb.append(line).append('\n')
+                    postResult()
+                }
+            )
+            if (!result.succeeded) {
+                sb.append('\n').append(result.detail).append('\n')
                 postResult()
-                if (!Shell.getShell().isRoot) {
-                    sb.append('\n').append("Still not :(").append('\n')
-                    postResult(NotRootedException())
-                    return@launch
-                }
             }
-
-            Shell.cmd(Starter.internalCommand).to(object : CallbackList<String?>() {
-                override fun onAddElement(s: String?) {
-                    sb.append(s).append('\n')
-                    postResult()
-                }
-            }).submit {
-                if (it.code != 0) {
-                    sb.append('\n').append("Send this to developer may help solve the problem.")
-                    postResult()
-                }
-            }
+            _rootResult.postValue(result)
         }
     }
 
@@ -167,7 +172,7 @@ private class ViewModel(context: Context, root: Boolean, host: String?, port: In
         sb.append("Starting with wireless adb in port $port...").append('\n').append('\n')
         postResult()
 
-        GlobalScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             val key = try {
                 AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "shizuku")
             } catch (e: Throwable) {

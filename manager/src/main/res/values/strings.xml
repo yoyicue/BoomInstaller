@@ -155,6 +155,9 @@ With %1$s, in any terminal app, you can connect to and interact with the shell r
     <string name="starter">Starter</string>
     <string name="starting_root_shell" translatable="false">Starting root shell…</string>
     <string name="start_with_root_failed">Can\'t start service because root permission is not granted or this device is not rooted.</string>
+    <string name="start_with_root_selinux_denied">Root is granted, but this su implementation or SELinux policy blocks the Binder connection required by BoomInstaller.</string>
+    <string name="start_with_root_timeout">The root starter completed, but the BoomInstaller service did not connect. Try again or use wireless debugging.</string>
+    <string name="start_with_root_starter_failed">The BoomInstaller root service failed to start. See the startup output for details.</string>
 
     <!-- Misc -->
     <string name="dialog_cannot_open_browser_title">Can\'t start browser</string>
