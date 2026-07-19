@@ -8,7 +8,7 @@ Canonical project identity:
 - source repository: `https://github.com/yoyicue/BoomInstaller`;
 - Android product and APK: **BoomInstaller**;
 - embedded installation engine: [`xpad-installer`](https://github.com/yoyicue/xpad-installer)
-  v0.2.13, hash-locked inside the APK and extracted only for one broker operation;
+  v0.2.14, hash-locked inside the APK and extracted only for one broker operation;
 - integrated offline installer: [`xpad2-cli`](https://github.com/yoyicue/xpad2-cli).
 
 The former private repository name `xpad2_installer` is retired. It referred to
@@ -48,7 +48,7 @@ Shizuku control-plane source contains no installer exploit and never turns an
 0044 or UID 1000 identity into a persistent Shizuku runtime.
 
 For standalone APK installation, the BoomInstaller APK carries the exact
-`xpad-install` v0.2.13 ELF recorded in `third_party/xpad-installer.lock`.
+`xpad-install` v0.2.14 ELF recorded in `third_party/xpad-installer.lock`.
 The root-or-shell broker verifies the embedded SHA-256, extracts it into its
 mode-0700 private work directory, executes one operation, and removes it in
 `finally`. A Root-backed broker dispatches the target to the real XPad OEM
@@ -138,8 +138,10 @@ When the home page reports that Shizuku is running as `root` or `adb`,
 open **Install APK**, select an APK with Android's document picker, and tap
 **Install**. The Manager passes the selected file descriptor to a private
 root-or-shell broker, which extracts and verifies its embedded `xpad-install`
-v0.2.13, copies the APK to a mode-0600 staging file, and invokes
-`install --backend auto`. Root mode uses the real OEM Provider directly; it
+v0.2.14, copies the APK to a mode-0600 staging file, and invokes
+`install --backend auto`. The embedded engine uses unique, short-lived APK/DEX
+staging names, so a read-only file left by an interrupted older operation cannot
+poison the next install; I/O failures include artifact, path and errno. Root mode uses the real OEM Provider directly; it
 does not impersonate UID 2000 and keeps the direct PackageInstaller backend
 blocked. For the Provider call, the engine creates a random, short-lived
 Provider-readable copy and removes it when the transaction ends; the broker's
@@ -168,7 +170,7 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
 ```
 
 The APK is written under `manager/build/outputs/apk/debug/`.
-The build first resolves the public xpad-installer v0.2.13 Release, verifies its
+The build first resolves the public xpad-installer v0.2.14 Release, verifies its
 locked size/SHA-256 and embeds both the ARM64 ELF and GPLv3 license. Set
 `BOOM_XPAD_INSTALLER=/path/to/xpad-install` for an offline build; the supplied
 file must match the lock exactly. `tools/verify_apk_permission_boundary.sh`
@@ -179,21 +181,25 @@ Binder action identities remain present.
 ### Release signing
 
 Build the minimized release content, then sign it with the dedicated BOOM
-production certificate from the protected signing backup:
+production certificate. The default reads the encrypted local custody files
+from `~/.android/keys` and the matching recovery RSA key from `~/.ssh`; all
+identities are pinned and the PKCS12 store is opened before signing:
 
 ```shell
 JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
   ./gradlew :manager:assembleRelease
-export BOOM_RELEASE_SIGNING_BACKUP=/path/to/protected/signing-backup
 tools/sign_release.sh
 ```
 
-The signing script validates the complete backup checksum manifest, pins the
-recovery-key fingerprint and production certificate, decrypts the PKCS12
-password only in process memory, and requires APK Signature Schemes v2 and v3.
+To sign directly from the mounted cold backup instead, set
+`BOOM_RELEASE_SIGNING_BACKUP=/path/to/protected/signing-backup`; that mode also
+validates its complete checksum manifest. Both modes pin the recovery-key
+fingerprint and production certificate, decrypt the PKCS12 password only in
+process memory, and require APK Signature Schemes v2 and v3.
 The final artifact is written to `out/apk/*-production.apk`; the intermediate
 APK under `manager/build/outputs/apk/release/` is not a production artifact.
-Override the default backup path with `BOOM_RELEASE_SIGNING_BACKUP` when needed.
+Override local custody paths with `BOOM_RELEASE_KEY_DIR`,
+`BOOM_RELEASE_RECOVERY_KEY`, or `BOOM_RELEASE_RECOVERY_PUBLIC_KEY` when needed.
 
 Production and debug certificates are intentionally different. Android cannot
 install a production-signed build over a previously installed debug-signed
@@ -205,5 +211,5 @@ BoomInstaller is based on [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizu
 commit `b844bc491f1790c72328e1a8e5b2349f8978f0ea` and its pinned Shizuku-API
 submodule. BoomInstaller source remains under the Apache License 2.0; see
 [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md). The separately executed embedded
-xpad-installer v0.2.13 is GPL-3.0-only; its full license is included in the APK
+xpad-installer v0.2.14 is GPL-3.0-only; its full license is included in the APK
 and its corresponding source is the exact public tag linked above.

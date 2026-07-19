@@ -9,6 +9,7 @@ if [[ -z ${JAVA_HOME:-} && \
   export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 fi
 BACKUP=${BOOM_RELEASE_SIGNING_BACKUP:-}
+KEY_DIR=${BOOM_RELEASE_KEY_DIR:-"$HOME/.android/keys"}
 KEY_ALIAS=boom-xpad2-release
 EXPECTED_PACKAGE=com.yoyicue.boominstaller
 EXPECTED_CERT_SHA256=3cb5b69579d23197ced8100818a85a46b821383a504b394a44cfe3e98ade78a2
@@ -19,10 +20,19 @@ die() {
   exit 1
 }
 
-[[ -n "$BACKUP" ]] || die signing-backup-not-set
-KEYSTORE="$BACKUP/xpad2-boom-release.p12"
-SECRET_FILE="$BACKUP/xpad2-boom-release-password.rsa-oaep-sha256"
-RECOVERY_KEY="$BACKUP/recovery-rsa/id_rsa"
+if [[ -n "$BACKUP" ]]; then
+  KEYSTORE="$BACKUP/xpad2-boom-release.p12"
+  CERT_FILE="$BACKUP/xpad2-boom-release-cert.pem"
+  SECRET_FILE="$BACKUP/xpad2-boom-release-password.rsa-oaep-sha256"
+  RECOVERY_KEY="$BACKUP/recovery-rsa/id_rsa"
+  RECOVERY_PUBLIC_KEY="$BACKUP/recovery-rsa/id_rsa.pub"
+else
+  KEYSTORE="$KEY_DIR/xpad2-boom-release.p12"
+  CERT_FILE="$KEY_DIR/xpad2-boom-release-cert.pem"
+  SECRET_FILE="$KEY_DIR/xpad2-boom-release-password.rsa-oaep-sha256"
+  RECOVERY_KEY=${BOOM_RELEASE_RECOVERY_KEY:-"$HOME/.ssh/id_rsa"}
+  RECOVERY_PUBLIC_KEY=${BOOM_RELEASE_RECOVERY_PUBLIC_KEY:-"$HOME/.ssh/id_rsa.pub"}
+fi
 
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -73,22 +83,26 @@ fi
 
 [[ -f "$INPUT" ]] || die input-missing
 [[ "$INPUT" != "$OUTPUT" ]] || die output-matches-input
-[[ -f "$BACKUP/SHA256SUMS" ]] || die backup-manifest-missing
 [[ -f "$KEYSTORE" ]] || die keystore-missing
+[[ -f "$CERT_FILE" ]] || die certificate-missing
 [[ -f "$SECRET_FILE" ]] || die encrypted-secret-missing
 [[ -f "$RECOVERY_KEY" ]] || die recovery-key-missing
+[[ -f "$RECOVERY_PUBLIC_KEY" ]] || die recovery-public-key-missing
 
-(
-  cd "$BACKUP"
-  shasum -a 256 -c SHA256SUMS >/dev/null
-) || die backup-checksum
+if [[ -n "$BACKUP" ]]; then
+  [[ -f "$BACKUP/SHA256SUMS" ]] || die backup-manifest-missing
+  (
+    cd "$BACKUP"
+    shasum -a 256 -c SHA256SUMS >/dev/null
+  ) || die backup-checksum
+fi
 
-cert_sha=$(openssl x509 -in "$BACKUP/xpad2-boom-release-cert.pem" \
+cert_sha=$(openssl x509 -in "$CERT_FILE" \
   -outform DER | shasum -a 256 | awk '{print $1}')
 [[ "$cert_sha" == "$EXPECTED_CERT_SHA256" ]] ||
-  die certificate-backup-mismatch
+  die certificate-mismatch
 
-rsa_fingerprint=$(ssh-keygen -lf "$BACKUP/recovery-rsa/id_rsa.pub" |
+rsa_fingerprint=$(ssh-keygen -lf "$RECOVERY_PUBLIC_KEY" |
   awk '{print $2}')
 [[ "$rsa_fingerprint" == "$EXPECTED_RSA_FINGERPRINT" ]] ||
   die recovery-key-fingerprint
@@ -114,6 +128,8 @@ BOOM_RELEASE_STORE_PASSWORD=$(openssl pkeyutl -decrypt \
   -in "$SECRET_FILE")
 BOOM_RELEASE_KEY_PASSWORD=$BOOM_RELEASE_STORE_PASSWORD
 export BOOM_RELEASE_STORE_PASSWORD BOOM_RELEASE_KEY_PASSWORD
+keytool -list -keystore "$KEYSTORE" -storetype PKCS12 -alias "$KEY_ALIAS" \
+  -storepass:env BOOM_RELEASE_STORE_PASSWORD >/dev/null || die keystore-open
 
 mkdir -p "$(dirname "$OUTPUT")"
 rm -f "$OUTPUT"

@@ -35,10 +35,10 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
     public static final int STATUS_REPAIR_PENDING = -76;
     private static final long CLI_TIMEOUT_SECONDS = 420;
     private static final String EMBEDDED_XPAD_INSTALL_ASSET = "xpad-install";
-    private static final String REQUIRED_XPAD_INSTALL_VERSION = "0.2.13";
+    private static final String REQUIRED_XPAD_INSTALL_VERSION = "0.2.14";
     private static final String EMBEDDED_XPAD_INSTALL_SHA256 =
-            "aa30623d33247067c45b6faffa2887c1dfa76acd7bbceb1033fd3bde03d1475e";
-    private static final long EMBEDDED_XPAD_INSTALL_SIZE = 96968;
+            "641eb9d1d790397e3087a41b922cd8f807188ff382d42938f1beb55a10b2d743";
+    private static final long EMBEDDED_XPAD_INSTALL_SIZE = 98472;
     private static final File WORK_ROOT = new File("/data/local/tmp/.boominstaller");
     private static final File LOG_ROOT = new File(WORK_ROOT, "logs");
     private static final int MAX_LOG_FILES = 12;
