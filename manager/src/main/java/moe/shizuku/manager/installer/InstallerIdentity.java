@@ -11,9 +11,9 @@ public final class InstallerIdentity {
         return uid == ROOT_UID || uid == SHELL_UID;
     }
 
-    /** The isolated broker must invoke the guarded xpad-install control plane as ADB shell. */
+    /** Root uses the OEM Provider path; ADB shell uses the managed 0044 path. */
     public static boolean isInstallerServiceUid(int uid) {
-        return uid == SHELL_UID;
+        return canHostInstaller(uid);
     }
 
     private InstallerIdentity() {

@@ -44,14 +44,10 @@ public class ShizukuUserServiceManager extends UserServiceManager {
         if (Process.myUid() == 0
                 && MANAGER_PACKAGE.equals(packageName)
                 && INSTALLER_SERVICE.equals(classname)) {
-            LOGGER.i("Starting BoomInstaller APK broker as shell for managed 0044 installation");
-            return "/system/bin/su 2000 -c " + shellQuote(command);
+            LOGGER.i("Starting BoomInstaller APK broker as root for OEM Provider installation");
+            return command;
         }
         return command;
-    }
-
-    private static String shellQuote(String value) {
-        return "'" + value.replace("'", "'\"'\"'") + "'";
     }
 
     @Override

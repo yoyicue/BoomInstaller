@@ -35,10 +35,10 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
     public static final int STATUS_REPAIR_PENDING = -76;
     private static final long CLI_TIMEOUT_SECONDS = 420;
     private static final String EMBEDDED_XPAD_INSTALL_ASSET = "xpad-install";
-    private static final String REQUIRED_XPAD_INSTALL_VERSION = "0.2.10";
+    private static final String REQUIRED_XPAD_INSTALL_VERSION = "0.2.13";
     private static final String EMBEDDED_XPAD_INSTALL_SHA256 =
-            "dfe061e8105199b69771e2f9dc05d92ad85538910181dc006070dadfb0a0c15e";
-    private static final long EMBEDDED_XPAD_INSTALL_SIZE = 93752;
+            "aa30623d33247067c45b6faffa2887c1dfa76acd7bbceb1033fd3bde03d1475e";
+    private static final long EMBEDDED_XPAD_INSTALL_SIZE = 96968;
     private static final File WORK_ROOT = new File("/data/local/tmp/.boominstaller");
     private static final File LOG_ROOT = new File(WORK_ROOT, "logs");
     private static final int MAX_LOG_FILES = 12;
@@ -117,10 +117,15 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
                 cli = stageEmbeddedXpadInstaller(operationId, logFile);
                 notifyStatus(callback, context.getString(R.string.installer_rechecking));
                 // This recovery action is deliberately read-only and must remain status-only.
-                int exit = runLogged(logFile, 30,
-                        cli.getAbsolutePath(), "znxrun", "status");
+                boolean rootProvider = Process.myUid() == Process.ROOT_UID;
+                int exit = rootProvider
+                        ? runLogged(logFile, 30, cli.getAbsolutePath(), "doctor")
+                        : runLogged(logFile, 30,
+                                cli.getAbsolutePath(), "znxrun", "status");
                 String output = readTail(logFile, 32 * 1024);
-                boolean healthy = exit == 0 && output.contains("ZNXRUN_STATUS status=healthy");
+                boolean healthy = exit == 0 && (rootProvider
+                        ? output.contains("uid=0") && output.contains("provider=available")
+                        : output.contains("ZNXRUN_STATUS status=healthy"));
                 appendLog(logFile, "status_check_exit=" + exit + " healthy=" + healthy);
                 notifyFinished(callback,
                         healthy ? PackageInstaller.STATUS_SUCCESS : STATUS_REPAIR_PENDING,
@@ -141,8 +146,8 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
             IInstallCallback callback) throws Exception {
         int uid = Process.myUid();
         if (!InstallerIdentity.isInstallerServiceUid(uid)) {
-            throw new SecurityException("installer service requires adb-shell identity, current uid="
-                    + uid);
+            throw new SecurityException(
+                    "installer service requires root or adb-shell identity, current uid=" + uid);
         }
 
         installWithManagedXpadInstaller(apk, size, displayName, callback);
@@ -200,8 +205,13 @@ public final class BoomInstallerUserService extends IBoomInstallerService.Stub {
             appendLog(logFile, "target_package=" + safeLogValue(packageName)
                     + " target_version_code=" + expectedVersion);
 
-            notifyStatus(callback, context.getString(R.string.installer_installing_managed));
-            appendLog(logFile, "phase=managed-0044-install");
+            boolean rootProvider = Process.myUid() == Process.ROOT_UID;
+            notifyStatus(callback, context.getString(rootProvider
+                    ? R.string.installer_installing_root
+                    : R.string.installer_installing_managed));
+            appendLog(logFile, rootProvider
+                    ? "phase=root-oem-provider-install"
+                    : "phase=managed-0044-install");
             int exitCode = runLogged(logFile, CLI_TIMEOUT_SECONDS,
                     cli.getAbsolutePath(), "install", "--backend", "auto",
                     staged.getAbsolutePath());

@@ -126,7 +126,7 @@ require_text manager/src/main/java/moe/shizuku/manager/ShizukuManagerProvider.kt
 require_text manager/src/main/java/moe/shizuku/manager/ShizukuManagerProvider.kt \
   '"pending-reboot"'
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
-  'REQUIRED_XPAD_INSTALL_VERSION = "0.2.10"'
+  'REQUIRED_XPAD_INSTALL_VERSION = "0.2.13"'
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   'context.getAssets().open(EMBEDDED_XPAD_INSTALL_ASSET)'
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
@@ -134,14 +134,14 @@ require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUs
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   'EMBEDDED_XPAD_INSTALL_SHA256 ='
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
-  'EMBEDDED_XPAD_INSTALL_SIZE = 93752'
+  'EMBEDDED_XPAD_INSTALL_SIZE = 96968'
 require_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
-  'dfe061e8105199b69771e2f9dc05d92ad85538910181dc006070dadfb0a0c15e'
+  'aa30623d33247067c45b6faffa2887c1dfa76acd7bbceb1033fd3bde03d1475e'
 reject_text manager/src/main/java/moe/shizuku/manager/installer/BoomInstallerUserService.java \
   '"/data/local/tmp/xpad-install"'
-require_text third_party/xpad-installer.lock 'version=0.2.10'
+require_text third_party/xpad-installer.lock 'version=0.2.13'
 require_text third_party/xpad-installer.lock \
-  'asset_sha256=dfe061e8105199b69771e2f9dc05d92ad85538910181dc006070dadfb0a0c15e'
+  'asset_sha256=aa30623d33247067c45b6faffa2887c1dfa76acd7bbceb1033fd3bde03d1475e'
 require_text manager/build.gradle prepareEmbeddedXpadInstaller
 require_text tools/prepare_xpad_installer.sh BOOM_EMBEDDED_XPAD_PREPARE_OK
 require_text tools/verify_embedded_xpad_installer.sh BOOM_EMBEDDED_XPAD_VERIFY_OK
@@ -152,7 +152,9 @@ reject_text manager/src/main/java/moe/shizuku/manager/installer/InstallerIdentit
 [ ! -e manager/src/main/java/moe/shizuku/manager/installer/IntentSenderFactory.java ] || \
   fail "BoomInstaller must route all APK commits through its embedded xpad-install"
 require_text server/src/main/java/rikka/shizuku/server/ShizukuUserServiceManager.java \
-  'Starting BoomInstaller APK broker as shell for managed 0044 installation'
+  'Starting BoomInstaller APK broker as root for OEM Provider installation'
+reject_text server/src/main/java/rikka/shizuku/server/ShizukuUserServiceManager.java \
+  'su 2000'
 
 require_text server/src/main/java/rikka/shizuku/server/ShizukuConfig.java \
   '@SerializedName("manager")'

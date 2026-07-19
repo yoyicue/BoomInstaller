@@ -4,7 +4,7 @@
     <string name="home_installer_description">Install an APK through the native XPad installer path</string>
     <string name="home_installer_requires_system">Open to start the service with Root, or use wireless debugging</string>
     <string name="installer_title">APK installer</string>
-    <string name="installer_intro">BoomInstaller contains its own verified installation engine and installs only through managed 0044. After an identity repair is committed it polls read-only for up to about 5 minutes; 31317 never installs the target APK.</string>
+    <string name="installer_intro">With Root, BoomInstaller uses the real XPad OEM installer Provider. With ADB shell, it uses managed 0044 and may spend up to about 5 minutes checking an identity repair. 31317 never installs the target APK.</string>
     <string name="installer_no_file">No APK selected</string>
     <string name="installer_select_apk">Select APK</string>
     <string name="installer_install">Install</string>
@@ -27,11 +27,12 @@
     <string name="installer_opening_apk">Opening APK…</string>
     <string name="installer_checking_cli">Verifying BoomInstaller’s embedded installation engine…</string>
     <string name="installer_installing_managed">Installing through managed 0044; read-only checks after identity repair may take up to about 5 minutes…</string>
+    <string name="installer_installing_root">Installing through the XPad OEM Provider with authorized Root…</string>
     <string name="installer_repair_pending">Installer identity repair was committed and Android is still refreshing. Wait, then tap Recheck; do not tap Install again.</string>
     <string name="installer_recheck">Recheck</string>
     <string name="installer_rechecking">Checking installer identity (read-only)…</string>
     <string name="installer_identity_ready">Installer identity is ready. You can tap Install again.</string>
-    <string name="installer_cli_missing">The embedded xpad-install v0.2.9 engine failed integrity or self-test checks. Reinstall the official BoomInstaller APK.</string>
+    <string name="installer_cli_missing">The embedded xpad-install v0.2.13 engine failed integrity or self-test checks. Reinstall the official BoomInstaller APK.</string>
     <string name="installer_reboot_required">The protected installer stopped because a core process changed. Restart the tablet normally before trying again. Diagnostic log: %1$s</string>
     <string name="installer_cli_failed">xpad-install failed (exit %1$d). Diagnostic log: %2$s%3$s</string>
     <string name="installer_verification_failed">Android did not report the expected installed package after xpad-install completed. Diagnostic log: %1$s</string>
